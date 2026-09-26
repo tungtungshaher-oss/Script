@@ -161,7 +161,7 @@ local function TerminateTargetScript()
     table.clear(ScriptConnections)
     for _,c in ipairs({GC(),LP:FindFirstChild("PlayerGui")}) do
         if c then for _,ch in ipairs(c:GetChildren()) do
-            if not InitialGuis[ch] and ch.Name~="Tungtung_GetKeyUI" and ch.Name~="Tungtung_ToastUI" and ch.Name~="Tungtung_InputBlocker" and ch.Name~="Tungtung_StatusUI" and ch.Name~="Tungtung_LoadingUI" then
+            if not InitialGuis[ch] and ch.Name~="Tungtung_GetKeyUI" and ch.Name~="Tungtung_ToastUI" and ch.Name~="Tungtung_InputBlocker" and ch.Name~="Tungtung_StatusUI" and ch.Name~="Tungtung_LoadingUI" and ch.Name~="Tungtung_ResetUI" then
                 pcall(function() ch:Destroy() end)
             end
         end end
@@ -323,6 +323,18 @@ local function StartCountdown()
     end)
 end
 
+local function StartResetUI()
+    task.spawn(function()
+        local _show=getgenv().Tungtung_ShowReset
+        if type(_show)=="string" then _show=_show:lower()~="false" end
+        if _show==nil or _show==true then
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/tungtungshaher-oss/Script/refs/heads/main/Reset_ui"))()
+            end)
+        end
+    end)
+end
+
 local banned,banUntil=IsBanned()
 if banned then
     local l=banUntil-os.time()
@@ -334,7 +346,7 @@ local kt=GetKeyRemainingTime()
 if kt and kt>0 then
     currentMode="NORMAL" currentTrialRemaining=kt EndTime=os.time()+kt
     ShowLoadingUI()
-    LaunchTargetScript() ShowStatusHUD() StartCountdown() return
+    LaunchTargetScript() ShowStatusHUD() StartCountdown() StartResetUI() return
 end
 
 local status,remaining=CheckTrialFromServer()
@@ -345,9 +357,9 @@ if status=="expired" then
 elseif status=="premium" then
     currentMode="NORMAL" currentTrialRemaining=remaining EndTime=os.time()+remaining
     ShowLoadingUI()
-    LaunchTargetScript() ShowStatusHUD() StartCountdown() return
+    LaunchTargetScript() ShowStatusHUD() StartCountdown() StartResetUI() return
 else
     currentMode="TRIAL" currentTrialRemaining=remaining EndTime=os.time()+remaining
     ShowLoadingUI()
-    LaunchTargetScript() ShowStatusHUD() StartCountdown()
+    LaunchTargetScript() ShowStatusHUD() StartCountdown() StartResetUI()
 end
