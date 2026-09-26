@@ -15,18 +15,19 @@ local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 local JSONBIN_KEY,JSONBIN_BIN=cfg.JSONBIN_KEY,cfg.JSONBIN_BIN
 local JSONBIN_URL="https://api.jsonbin.io/v3/b/"..JSONBIN_BIN
 local PASTEFY_TOKEN,LINK4M_TOKEN=cfg.PASTEFY_TOKEN,cfg.LINK4M_TOKEN
-local BRAND_NAME,SOCIAL_HANDLE,LOGO_ASSET=cfg.BRAND_NAME,cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
+local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
 local STEAL_HOLD,TRIAL_DURATION,KEY_DURATION=cfg.STEAL_HOLD,cfg.TRIAL_DURATION,cfg.KEY_DURATION
 local SPAM_COOLDOWN,SPAM_WINDOW,SPAM_MAX,BAN_DURATION=cfg.SPAM_COOLDOWN,cfg.SPAM_WINDOW,cfg.SPAM_MAX,cfg.BAN_DURATION
 local SCRIPT_URL=cfg.SCRIPT_URL
+local BRAND_NAME="Tungtung"
 
 local LoadingGuiRef
 
 local function ShowLoadingUI()
     local c=GC()
-    if c:FindFirstChild("whoareyoufrom7_LoadingUI") then c.whoareyoufrom7_LoadingUI:Destroy() end
-    local pg=LP:FindFirstChild("PlayerGui") if pg and pg:FindFirstChild("whoareyoufrom7_LoadingUI") then pg.whoareyoufrom7_LoadingUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="whoareyoufrom7_LoadingUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=2147483647
+    if c:FindFirstChild("Tungtung_LoadingUI") then c.Tungtung_LoadingUI:Destroy() end
+    local pg=LP:FindFirstChild("PlayerGui") if pg and pg:FindFirstChild("Tungtung_LoadingUI") then pg.Tungtung_LoadingUI:Destroy() end
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_LoadingUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=2147483647
     pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end LoadingGuiRef=G
     local O=Instance.new("Frame") O.Size=UDim2.new(1,0,1,0) O.BackgroundColor3=Color3.fromRGB(0,0,0) O.BackgroundTransparency=.15 O.BorderSizePixel=0 O.ZIndex=1 O.Parent=G
     local C=Instance.new("Frame") C.Size=UDim2.new(0,340,0,110) C.Position=UDim2.new(.5,-170,.5,-55) C.BackgroundColor3=Color3.fromRGB(15,12,22) C.BorderSizePixel=0 C.ZIndex=2 C.Parent=G
@@ -135,7 +136,7 @@ local function ApplyScreenLockdown()
         if r then r.Anchored=true end
     end
     if not InputBlockerScreen then
-        InputBlockerScreen=Instance.new("ScreenGui") InputBlockerScreen.Name="whoareyoufrom7_InputBlocker" InputBlockerScreen.ResetOnSpawn=false InputBlockerScreen.DisplayOrder=100
+        InputBlockerScreen=Instance.new("ScreenGui") InputBlockerScreen.Name="Tungtung_InputBlocker" InputBlockerScreen.ResetOnSpawn=false InputBlockerScreen.DisplayOrder=100
         pcall(function() InputBlockerScreen.Parent=GC() end)
         if not InputBlockerScreen.Parent then InputBlockerScreen.Parent=LP:WaitForChild("PlayerGui") end
         local sh=Instance.new("TextButton") sh.Size=UDim2.new(1,0,1,0) sh.BackgroundColor3=Color3.fromRGB(0,0,0) sh.BackgroundTransparency=.45 sh.Text="" sh.AutoButtonColor=false sh.Active=true sh.ZIndex=15 sh.Parent=InputBlockerScreen
@@ -154,12 +155,12 @@ local function RemoveScreenLockdown()
 end
 
 local function TerminateTargetScript()
-    getgenv().whoareyoufrom7_Active=false
+    getgenv().tungtung_active=false
     for _,c in ipairs(ScriptConnections) do if typeof(c)=="RBXScriptConnection" and c.Connected then c:Disconnect() end end
     table.clear(ScriptConnections)
     for _,c in ipairs({GC(),LP:FindFirstChild("PlayerGui")}) do
         if c then for _,ch in ipairs(c:GetChildren()) do
-            if not InitialGuis[ch] and ch.Name~="whoareyoufrom7_GetKeyUI" and ch.Name~="whoareyoufrom7_ToastUI" and ch.Name~="whoareyoufrom7_InputBlocker" and ch.Name~="whoareyoufrom7_StatusUI" and ch.Name~="whoareyoufrom7_LoadingUI" then
+            if not InitialGuis[ch] and ch.Name~="Tungtung_GetKeyUI" and ch.Name~="Tungtung_ToastUI" and ch.Name~="Tungtung_InputBlocker" and ch.Name~="Tungtung_StatusUI" and ch.Name~="Tungtung_LoadingUI" then
                 pcall(function() ch:Destroy() end)
             end
         end end
@@ -170,7 +171,7 @@ local function ApplyBranding()
     local tuned={}
     local function T(p) if tuned[p] then return end tuned[p]=true if p:IsA("ProximityPrompt") then p.HoldDuration=STEAL_HOLD p.RequiresLineOfSight=false pcall(function() p.MaxActivationDistance=math.max(p.MaxActivationDistance,25) end) end end
     for _,d in ipairs(Workspace:GetDescendants()) do T(d) end
-    task.spawn(function() while getgenv().whoareyoufrom7_Active do task.wait(3) for _,d in ipairs(Workspace:GetDescendants()) do T(d) end for o in pairs(tuned) do if not o or not o.Parent then tuned[o]=nil end end end end)
+    task.spawn(function() while getgenv().tungtung_active do task.wait(3) for _,d in ipairs(Workspace:GetDescendants()) do T(d) end for o in pairs(tuned) do if not o or not o.Parent then tuned[o]=nil end end end end)
     PPS.PromptButtonHoldBegan:Connect(function(p) pcall(function() if not p or not p.Parent then return end p.HoldDuration=STEAL_HOLD task.delay(STEAL_HOLD,function() if fireproximityprompt and p and p.Parent then pcall(function() fireproximityprompt(p) end) end end) end) end)
 end
 
@@ -194,7 +195,7 @@ local function ApplyHook()
         end)
     end
     local function S() for _,r in ipairs({GC(),gethui and gethui(),LP:FindFirstChild("PlayerGui")}) do if r then for _,d in ipairs(r:GetDescendants()) do H(d) end end end end
-    S() task.spawn(function() while getgenv().whoareyoufrom7_Active do task.wait(2) S() for o in pairs(hj) do if not o or not o.Parent then hj[o]=nil end end end end)
+    S() task.spawn(function() while getgenv().tungtung_active do task.wait(2) S() for o in pairs(hj) do if not o or not o.Parent then hj[o]=nil end end end end)
 end
 
 local function FormatTime(s)
@@ -210,15 +211,15 @@ local EndTime=os.time()+TRIAL_DURATION
 
 local function ShowStatusHUD()
     local c=GC()
-    if c:FindFirstChild("whoareyoufrom7_StatusUI") then c.whoareyoufrom7_StatusUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="whoareyoufrom7_StatusUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=9999
+    if c:FindFirstChild("Tungtung_StatusUI") then c.Tungtung_StatusUI:Destroy() end
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_StatusUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=9999
     pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
     local F=Instance.new("Frame") F.Size=UDim2.new(0,140,0,40) F.Position=UDim2.new(0,10,0,10) F.BackgroundColor3=Color3.fromRGB(15,10,20) F.BackgroundTransparency=.15 F.BorderSizePixel=0 F.Active=false F.Parent=G
     Instance.new("UICorner",F).CornerRadius=UDim.new(0,10)
     local S=Instance.new("UIStroke",F) S.Thickness=1.3 S.Color=Color3.fromRGB(168,85,247) S.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
     local D=Instance.new("Frame") D.Size=UDim2.new(0,6,0,6) D.Position=UDim2.new(0,8,0,8) D.BackgroundColor3=Color3.fromRGB(0,255,163) D.BorderSizePixel=0 D.Parent=F
     Instance.new("UICorner",D).CornerRadius=UDim.new(1,0)
-    local Ti=Instance.new("TextLabel") Ti.Size=UDim2.new(1,-22,0,14) Ti.Position=UDim2.new(0,18,0,4) Ti.BackgroundTransparency=1 Ti.Text="WHOAREYOUFROM7" Ti.TextColor3=Color3.fromRGB(253,230,138) Ti.TextSize=9 Ti.Font=Enum.Font.GothamBlack Ti.TextXAlignment=Enum.TextXAlignment.Left Ti.Parent=F
+    local Ti=Instance.new("TextLabel") Ti.Size=UDim2.new(1,-22,0,14) Ti.Position=UDim2.new(0,18,0,4) Ti.BackgroundTransparency=1 Ti.Text="Tungtung" Ti.TextColor3=Color3.fromRGB(253,230,138) Ti.TextSize=9 Ti.Font=Enum.Font.GothamBlack Ti.TextXAlignment=Enum.TextXAlignment.Left Ti.Parent=F
     local M=Instance.new("TextLabel") M.Size=UDim2.new(1,-12,0,14) M.Position=UDim2.new(0,6,0,20) M.BackgroundTransparency=1 M.Text="TRIAL" M.TextColor3=Color3.fromRGB(245,158,11) M.TextSize=9 M.Font=Enum.Font.GothamBold M.TextXAlignment=Enum.TextXAlignment.Left M.Parent=F
     local Tl=Instance.new("TextLabel") Tl.Size=UDim2.new(1,-12,0,14) Tl.Position=UDim2.new(0,6,0,26) Tl.BackgroundTransparency=1 Tl.Text="10:00" Tl.TextColor3=Color3.fromRGB(0,255,163) Tl.TextSize=11 Tl.Font=Enum.Font.Code Tl.TextXAlignment=Enum.TextXAlignment.Left Tl.Parent=F
     task.spawn(function()
@@ -239,8 +240,8 @@ end
 local function LaunchTargetScript()
     if IsLaunching then return end IsLaunching=true
     if LoadingGuiRef and LoadingGuiRef.Parent then LoadingGuiRef:Destroy() LoadingGuiRef=nil end
-    local k=GC():FindFirstChild("whoareyoufrom7_GetKeyUI") if k then k:Destroy() end
-    task.wait(.2) TakeGuiSnapshot() getgenv().whoareyoufrom7_Active=true
+    local k=GC():FindFirstChild("Tungtung_GetKeyUI") if k then k:Destroy() end
+    task.wait(.2) TakeGuiSnapshot() getgenv().tungtung_active=true
     task.spawn(function() pcall(function() script_key="Trial" loadstring(game:HttpGet(SCRIPT_URL))() end) end)
     task.wait(2) ApplyBranding() ApplyHook() IsLaunching=false
 end
@@ -261,8 +262,8 @@ OpenKeySystemUI=function()
     local now=os.time()
     if now-LastGUIOpen<SPAM_COOLDOWN then print("[Anti-Spam] Đợi "..(SPAM_COOLDOWN-(now-LastGUIOpen)).."s") LogSpam() return end
     LastGUIOpen=now IsGUIOpen=true LogSpam()
-    if CoreGui:FindFirstChild("whoareyoufrom7_GetKeyUI") then CoreGui.whoareyoufrom7_GetKeyUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="whoareyoufrom7_GetKeyUI" G.ResetOnSpawn=false G.DisplayOrder=99999
+    if CoreGui:FindFirstChild("Tungtung_GetKeyUI") then CoreGui.Tungtung_GetKeyUI:Destroy() end
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_GetKeyUI" G.ResetOnSpawn=false G.DisplayOrder=99999
     pcall(function() G.Parent=GC() end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
     local M=Instance.new("Frame") M.Size=UDim2.new(0,260,0,180) M.Position=UDim2.new(.5,-130,.5,-90) M.BackgroundColor3=Color3.fromRGB(15,12,22) M.BorderSizePixel=0 M.Parent=G
     Instance.new("UICorner",M).CornerRadius=UDim.new(0,14)
