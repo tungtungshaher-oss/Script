@@ -23,6 +23,13 @@ local BRAND_NAME="Tungtung"
 
 local LoadingGuiRef
 
+local function BringLoadingToFront()
+    if LoadingGuiRef and LoadingGuiRef.Parent then
+        LoadingGuiRef.DisplayOrder=2147483647
+        LoadingGuiRef.Parent=GC()
+    end
+end
+
 local function ShowLoadingUI()
     local c=GC()
     if c:FindFirstChild("Tungtung_LoadingUI") then c.Tungtung_LoadingUI:Destroy() end
@@ -52,8 +59,6 @@ local function ShowLoadingUI()
         end
     end)
 end
-
-ShowLoadingUI()
 
 local InitialGuis,ScriptConnections,ActiveBlurEffect,InputBlockerScreen,OpenKeySystemUI={},{},nil,nil,nil
 local IsGUIOpen,LastGUIOpen,IsLaunching=false,0,false
@@ -262,7 +267,7 @@ OpenKeySystemUI=function()
     if now-LastGUIOpen<SPAM_COOLDOWN then print("[Anti-Spam] Đợi "..(SPAM_COOLDOWN-(now-LastGUIOpen)).."s") LogSpam() return end
     LastGUIOpen=now IsGUIOpen=true LogSpam()
     if CoreGui:FindFirstChild("Tungtung_GetKeyUI") then CoreGui.Tungtung_GetKeyUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="Tungtung_GetKeyUI" G.ResetOnSpawn=false G.DisplayOrder=2147483647
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_GetKeyUI" G.ResetOnSpawn=false G.DisplayOrder=9999
     pcall(function() G.Parent=GC() end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
     local M=Instance.new("Frame") M.Size=UDim2.new(0,260,0,180) M.Position=UDim2.new(.5,-130,.5,-90) M.BackgroundColor3=Color3.fromRGB(15,12,22) M.BorderSizePixel=0 M.Parent=G
     Instance.new("UICorner",M).CornerRadius=UDim.new(0,14)
@@ -329,16 +334,26 @@ end
 
 local kt=GetKeyRemainingTime()
 if kt and kt>0 then
+    ShowLoadingUI()
+    task.wait(7)
     currentMode="NORMAL" currentTrialRemaining=kt EndTime=os.time()+kt
     LaunchTargetScript() ShowStatusHUD() StartCountdown() return
 end
 
 local status,remaining=CheckTrialFromServer()
-if status=="expired" then ApplyScreenLockdown() OpenKeySystemUI() return
+if status=="expired" then
+    ShowLoadingUI()
+    task.wait(7)
+    ApplyScreenLockdown() OpenKeySystemUI()
+    return
 elseif status=="premium" then
+    ShowLoadingUI()
+    task.wait(7)
     currentMode="NORMAL" currentTrialRemaining=remaining EndTime=os.time()+remaining
     LaunchTargetScript() ShowStatusHUD() StartCountdown() return
 else
+    ShowLoadingUI()
+    task.wait(7)
     currentMode="TRIAL" currentTrialRemaining=remaining EndTime=os.time()+remaining
     LaunchTargetScript() ShowStatusHUD() StartCountdown()
 end
