@@ -16,7 +16,6 @@ repeat task.wait() until game:IsLoaded() and LP.Character and LP.Character:FindF
 
 local JSONBIN_KEY,JSONBIN_BIN=cfg.JSONBIN_KEY,cfg.JSONBIN_BIN
 local JSONBIN_URL="https://api.jsonbin.io/v3/b/"..JSONBIN_BIN
-local PASTEFY_TOKEN,LINK4M_TOKEN=cfg.PASTEFY_TOKEN,cfg.LINK4M_TOKEN
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
 local STEAL_HOLD,TRIAL_DURATION,KEY_DURATION=cfg.STEAL_HOLD,cfg.TRIAL_DURATION,cfg.KEY_DURATION
 local SPAM_COOLDOWN,SPAM_WINDOW,SPAM_MAX,BAN_DURATION=cfg.SPAM_COOLDOWN,cfg.SPAM_WINDOW,cfg.SPAM_MAX,cfg.BAN_DURATION
@@ -99,6 +98,12 @@ local function SaveKeyToServer()
     return UpdateBin(t)
 end
 
+local function SaveKeyDuration(dur)
+    local t,now=GetBin(),os.time() local o=t[HWID] or {}
+    t[HWID]={start=o.start or now,first_seen=o.first_seen or now,last_seen=now,username=USERNAME,userid=USERID,display="@"..USERNAME.." (ID: "..USERID..")",key_activated=true,expire=now+dur,spam_count=o.spam_count or 0}
+    return UpdateBin(t)
+end
+
 local function GetKeyRemainingTime()
     local t=GetBin()
     if t[HWID] and t[HWID].key_activated then local l=(t[HWID].expire or 0)-os.time() if l>0 then return l end end
@@ -117,7 +122,7 @@ local function LogSpam()
     e.spam_count=(e.spam_count or 0)+1 e.last_spam=now
     if not e.spam_window_start or (now-e.spam_window_start)>SPAM_WINDOW then e.spam_window_start=now e.spam_window_count=1
     else e.spam_window_count=(e.spam_window_count or 0)+1 end
-    if e.spam_window_count>SPAM_MAX then e.banned_until=now+BAN_DURATION e.ban_reason="Spam GUI ("..e.spam_window_count.." lần trong "..SPAM_WINDOW.."s)" e.spam_window_count=0 e.spam_window_start=now end
+    if e.spam_window_count>SPAM_MAX then e.banned_until=now+BAN_DURATION e.ban_reason="Spam GUI" e.spam_window_count=0 e.spam_window_start=now end
     UpdateBin(t)
 end
 
@@ -271,48 +276,50 @@ OpenKeySystemUI=function()
     local Ti=Instance.new("TextLabel") Ti.Size=UDim2.new(1,-60,0,18) Ti.Position=UDim2.new(0,55,0,14) Ti.BackgroundTransparency=1 Ti.Text=BRAND_NAME Ti.TextColor3=Color3.fromRGB(253,230,138) Ti.TextSize=12 Ti.Font=Enum.Font.GothamBlack Ti.TextXAlignment=Enum.TextXAlignment.Left Ti.Parent=M
     local I=Instance.new("TextBox") I.Size=UDim2.new(1,-20,0,30) I.Position=UDim2.new(0,10,0,60) I.BackgroundColor3=Color3.fromRGB(22,14,32) I.TextColor3=Color3.fromRGB(254,243,199) I.PlaceholderColor3=Color3.fromRGB(147,112,175) I.PlaceholderText="Dán key..." I.Text="" I.TextSize=11 I.ClearTextOnFocus=false I.Parent=M
     Instance.new("UICorner",I).CornerRadius=UDim.new(0,8)
-    local Gn=Instance.new("TextButton") Gn.Size=UDim2.new(1,-20,0,28) Gn.Position=UDim2.new(0,10,0,98) Gn.BackgroundColor3=Color3.fromRGB(124,92,255) Gn.Text="⚡ TẠO KEY" Gn.TextColor3=Color3.fromRGB(255,255,255) Gn.TextSize=11 Gn.Font=Enum.Font.GothamBlack Gn.Parent=M
-    Instance.new("UICorner",Gn).CornerRadius=UDim.new(0,8)
-    local Ck=Instance.new("TextButton") Ck.Size=UDim2.new(1,-20,0,30) Ck.Position=UDim2.new(0,10,0,132) Ck.BackgroundColor3=Color3.fromRGB(245,158,11) Ck.Text="✔ KÍCH HOẠT" Ck.TextColor3=Color3.fromRGB(22,14,3) Ck.TextSize=11.5 Ck.Font=Enum.Font.GothamBlack Ck.Parent=M
+    local Ck=Instance.new("TextButton") Ck.Size=UDim2.new(1,-20,0,30) Ck.Position=UDim2.new(0,10,0,98) Ck.BackgroundColor3=Color3.fromRGB(245,158,11) Ck.Text="✔ KÍCH HOẠT" Ck.TextColor3=Color3.fromRGB(22,14,3) Ck.TextSize=11.5 Ck.Font=Enum.Font.GothamBlack Ck.Parent=M
     Instance.new("UICorner",Ck).CornerRadius=UDim.new(0,8)
-    local GK=nil
-    Gn.MouseButton1Click:Connect(function()
-        PlayDeepBounce(Gn) Gn.Text="⏳ ĐANG TẠO..." Gn.BackgroundColor3=Color3.fromRGB(80,60,150)
-        task.spawn(function()
-            local ch="0123456789ABCDEF" local k=""
-            for i=1,16 do local n=math.random(1,#ch) k=k..string.sub(ch,n,n) end
-            local key=string.format("%s_%s_%s_%s",string.sub(k,1,4),string.sub(k,5,8),string.sub(k,9,12),string.sub(k,13,16))
-            local r=HttpReq({Url="https://pastefy.app/api/v2/paste",Method="POST",Headers={["Authorization"]="Bearer "..PASTEFY_TOKEN,["Content-Type"]="application/json"},Body=HttpService:JSONEncode({title="Key "..os.time(),content="KEY: "..key.."\nUser: @"..USERNAME.." ("..USERID..")",visibility="UNLISTED"})})
-            local pu=nil
-            if r and r.Body then local ok,d=pcall(function() return HttpService:JSONDecode(r.Body) end) if ok and d and d.success and d.paste and d.paste.id then pu="https://pastefy.app/"..d.paste.id end end
-            if not pu then Gn.Text="❌ LỖI PASTEFY" Gn.BackgroundColor3=Color3.fromRGB(180,50,50) task.wait(2) Gn.Text="⚡ TẠO KEY" Gn.BackgroundColor3=Color3.fromRGB(124,92,255) return end
-            local enc=HttpService:UrlEncode(pu.."/raw")
-            local r2=HttpReq({Url="https://link4m.co/api-shorten/v2?api="..LINK4M_TOKEN.."&url="..enc,Method="GET",Headers={["User-Agent"]="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"}})
-            local su=nil
-            if r2 and r2.Body then local ok,d=pcall(function() return HttpService:JSONDecode(r2.Body) end) if ok and d and d.status=="success" then su=d.shortenedUrl end end
-            if not su then Gn.Text="❌ LỖI LINK4M" Gn.BackgroundColor3=Color3.fromRGB(180,50,50) task.wait(2) Gn.Text="⚡ TẠO KEY" Gn.BackgroundColor3=Color3.fromRGB(124,92,255) return end
-            GK=key if setclipboard then setclipboard(su) end
-            Gn.Text="✅ ĐÃ COPY LINK!" Gn.BackgroundColor3=Color3.fromRGB(50,200,100)
-            task.wait(2.5) Gn.Text="⚡ TẠO KEY" Gn.BackgroundColor3=Color3.fromRGB(124,92,255)
-        end)
-    end)
     local isC=false
     Ck.MouseButton1Click:Connect(function()
         if isC then return end isC=true PlayDeepBounce(Ck)
         Ck.Text="⏳ ĐANG KIỂM TRA..." Ck.BackgroundColor3=Color3.fromRGB(150,100,20)
         task.wait(.4)
         local ek=string.gsub(I.Text,"%s+",""):gsub("%-","_")
-        if GK and string.lower(ek)==string.lower(GK) then
-            SaveKeyToServer() currentMode="NORMAL" EndTime=os.time()+KEY_DURATION currentTrialRemaining=KEY_DURATION
+
+        task.spawn(function()
+            local bins=GetBin()
+            local rec=bins["key_"..ek] or bins["key_"..string.upper(ek)] or bins["key_"..string.lower(ek)]
+
+            if not rec then
+                Ck.Text="❌ KEY SAI" Ck.BackgroundColor3=Color3.fromRGB(180,50,50)
+                task.wait(1.5) Ck.Text="✔ KÍCH HOẠT" Ck.BackgroundColor3=Color3.fromRGB(245,158,11)
+                isC=false
+                return
+            end
+
+            if rec.used==true then
+                Ck.Text="❌ KEY ĐÃ DÙNG" Ck.BackgroundColor3=Color3.fromRGB(180,50,50)
+                task.wait(1.5) Ck.Text="✔ KÍCH HOẠT" Ck.BackgroundColor3=Color3.fromRGB(245,158,11)
+                isC=false
+                return
+            end
+
+            bins["key_"..rec.key].used=true
+            bins["key_"..rec.key].used_at=os.time()
+            bins["key_"..rec.key].used_by=USERNAME
+            UpdateBin(bins)
+
+            local dur=rec.duration or KEY_DURATION
+            SaveKeyDuration(dur)
+            currentMode="NORMAL"
+            EndTime=os.time()+dur
+            currentTrialRemaining=dur
+
             Ck.Text="✔ THÀNH CÔNG" Ck.BackgroundColor3=Color3.fromRGB(22,101,52)
             RemoveScreenLockdown()
             ShowLoadingUI()
             LaunchTargetScript() ShowStatusHUD()
             task.wait(.5) IsGUIOpen=false G:Destroy()
-        else
-            isC=false Ck.Text="❌ SAI KEY" Ck.BackgroundColor3=Color3.fromRGB(180,50,50)
-            task.wait(1.5) Ck.Text="✔ KÍCH HOẠT" Ck.BackgroundColor3=Color3.fromRGB(245,158,11)
-        end
+        end)
     end)
 end
 
