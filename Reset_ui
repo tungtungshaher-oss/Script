@@ -1,0 +1,124 @@
+local CoreGui=game:GetService("CoreGui")
+local Players=game:GetService("Players")
+local TweenService=game:GetService("TweenService")
+local LP=Players.LocalPlayer
+
+local function GC() if gethui then local ok,h=pcall(gethui) if ok and h then return h end end return CoreGui or LP:WaitForChild("PlayerGui") end
+
+if getgenv().Tungtung_ResetUI and getgenv().Tungtung_ResetUI.Gui and getgenv().Tungtung_ResetUI.Gui.Parent then
+    getgenv().Tungtung_ResetUI.Gui:Destroy()
+end
+
+local G=Instance.new("ScreenGui")
+G.Name="Tungtung_ResetUI"
+G.ResetOnSpawn=false
+G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+G.IgnoreGuiInset=true
+G.DisplayOrder=2147483646
+pcall(function() G.Parent=GC() end)
+if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
+
+local Main=Instance.new("Frame")
+Main.Size=UDim2.new(0,180,0,90)
+Main.Position=UDim2.new(0,20,0.5,-45)
+Main.BackgroundColor3=Color3.fromRGB(15,12,22)
+Main.BorderSizePixel=0
+Main.Active=true
+Main.Draggable=true
+Main.Parent=G
+Instance.new("UICorner",Main).CornerRadius=UDim.new(0,12)
+
+local Stroke=Instance.new("UIStroke",Main)
+Stroke.Thickness=1.5
+Stroke.Color=Color3.fromRGB(168,85,247)
+Stroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+
+local TopBar=Instance.new("Frame")
+TopBar.Size=UDim2.new(1,0,0,24)
+TopBar.BackgroundColor3=Color3.fromRGB(25,18,38)
+TopBar.BorderSizePixel=0
+TopBar.Parent=Main
+Instance.new("UICorner",TopBar).CornerRadius=UDim.new(0,12)
+
+local TitleLbl=Instance.new("TextLabel")
+TitleLbl.Size=UDim2.new(1,-30,1,0)
+TitleLbl.Position=UDim2.new(0,10,0,0)
+TitleLbl.BackgroundTransparency=1
+TitleLbl.Text="Tungtung Reset"
+TitleLbl.TextColor3=Color3.fromRGB(253,230,138)
+TitleLbl.TextSize=11
+TitleLbl.Font=Enum.Font.GothamBlack
+TitleLbl.TextXAlignment=Enum.TextXAlignment.Left
+TitleLbl.Parent=TopBar
+
+local CloseBtn=Instance.new("TextButton")
+CloseBtn.Size=UDim2.new(0,20,0,20)
+CloseBtn.Position=UDim2.new(1,-24,0,2)
+CloseBtn.BackgroundColor3=Color3.fromRGB(200,50,50)
+CloseBtn.Text="X"
+CloseBtn.TextColor3=Color3.fromRGB(255,255,255)
+CloseBtn.TextSize=11
+CloseBtn.Font=Enum.Font.GothamBlack
+CloseBtn.BorderSizePixel=0
+CloseBtn.Parent=TopBar
+Instance.new("UICorner",CloseBtn).CornerRadius=UDim.new(1,0)
+
+local ActBtn=Instance.new("TextButton")
+ActBtn.Size=UDim2.new(1,-20,0,40)
+ActBtn.Position=UDim2.new(0,10,0,40)
+ActBtn.BackgroundColor3=Color3.fromRGB(124,92,255)
+ActBtn.Text="⚡ KÍCH HOẠT"
+ActBtn.TextColor3=Color3.fromRGB(255,255,255)
+ActBtn.TextSize=13
+ActBtn.Font=Enum.Font.GothamBlack
+ActBtn.BorderSizePixel=0
+ActBtn.Parent=Main
+Instance.new("UICorner",ActBtn).CornerRadius=UDim.new(0,8)
+
+local ActStroke=Instance.new("UIStroke",ActBtn)
+ActStroke.Thickness=1.2
+ActStroke.Color=Color3.fromRGB(180,150,255)
+ActStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+
+local function PlayBounce(b)
+    local oS,oP=b.Size,b.Position
+    local t1=TweenService:Create(b,TweenInfo.new(.08,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Size=UDim2.new(oS.X.Scale,oS.X.Offset-4,oS.Y.Scale,oS.Y.Offset-4),Position=UDim2.new(oP.X.Scale,oP.X.Offset+2,oP.Y.Scale,oP.Y.Offset+2)})
+    local t2=TweenService:Create(b,TweenInfo.new(.16,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=oS,Position=oP})
+    t1:Play() t1.Completed:Connect(function() t2:Play() end)
+end
+
+CloseBtn.MouseButton1Click:Connect(function()
+    PlayBounce(CloseBtn)
+    task.wait(.15)
+    G:Destroy()
+    if getgenv().Tungtung_ResetUI then getgenv().Tungtung_ResetUI.Gui=nil end
+end)
+
+local isResetting=false
+ActBtn.MouseButton1Click:Connect(function()
+    if isResetting then return end
+    isResetting=true
+    PlayBounce(ActBtn)
+    ActBtn.Text="⏳ ĐANG RESET..."
+    ActBtn.BackgroundColor3=Color3.fromRGB(80,60,150)
+
+    pcall(function()
+        local ch=LP.Character
+        if ch then
+            local h=ch:FindFirstChildOfClass("Humanoid")
+            if h then h.Health=0 end
+        end
+        task.wait(.2)
+        LP:LoadCharacter()
+    end)
+
+    task.wait(1)
+    ActBtn.Text="✅ ĐÃ RESET"
+    ActBtn.BackgroundColor3=Color3.fromRGB(50,200,100)
+    task.wait(1)
+    ActBtn.Text="⚡ KÍCH HOẠT"
+    ActBtn.BackgroundColor3=Color3.fromRGB(124,92,255)
+    isResetting=false
+end)
+
+getgenv().Tungtung_ResetUI={Gui=G, Enabled=true}
