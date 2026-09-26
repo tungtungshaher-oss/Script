@@ -30,7 +30,7 @@ local function ShowLoadingUI()
     if c:FindFirstChild("Tungtung_LoadingUI") then c.Tungtung_LoadingUI:Destroy() end
     local pg=LP:FindFirstChild("PlayerGui") if pg and pg:FindFirstChild("Tungtung_LoadingUI") then pg.Tungtung_LoadingUI:Destroy() end
     local LOAD_TIME=math.random(6,10)
-    local G=Instance.new("ScreenGui") G.Name="Tungtung_LoadingUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=1
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_LoadingUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=2147483647
     pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end LoadingGuiRef=G
     local O=Instance.new("Frame") O.Size=UDim2.new(1,0,1,0) O.BackgroundColor3=Color3.fromRGB(0,0,0) O.BackgroundTransparency=0 O.BorderSizePixel=0 O.ZIndex=1 O.Parent=G
     local C=Instance.new("Frame") C.Size=UDim2.new(0,340,0,120) C.Position=UDim2.new(.5,-170,.5,-60) C.BackgroundColor3=Color3.fromRGB(15,12,22) C.BorderSizePixel=0 C.ZIndex=2 C.Parent=G
@@ -55,8 +55,6 @@ local function ShowLoadingUI()
         end
     end)
 end
-
-ShowLoadingUI()
 
 local InitialGuis,ScriptConnections,ActiveBlurEffect,InputBlockerScreen,OpenKeySystemUI={},{},nil,nil,nil
 local IsGUIOpen,LastGUIOpen,IsLaunching=false,0,false
@@ -265,7 +263,7 @@ OpenKeySystemUI=function()
     if now-LastGUIOpen<SPAM_COOLDOWN then print("[Anti-Spam] Đợi "..(SPAM_COOLDOWN-(now-LastGUIOpen)).."s") LogSpam() return end
     LastGUIOpen=now IsGUIOpen=true LogSpam()
     if CoreGui:FindFirstChild("Tungtung_GetKeyUI") then CoreGui.Tungtung_GetKeyUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="Tungtung_GetKeyUI" G.ResetOnSpawn=false G.DisplayOrder=9999
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_GetKeyUI" G.ResetOnSpawn=false G.DisplayOrder=2147483647
     pcall(function() G.Parent=GC() end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
     local M=Instance.new("Frame") M.Size=UDim2.new(0,260,0,180) M.Position=UDim2.new(.5,-130,.5,-90) M.BackgroundColor3=Color3.fromRGB(15,12,22) M.BorderSizePixel=0 M.Parent=G
     Instance.new("UICorner",M).CornerRadius=UDim.new(0,14)
@@ -307,7 +305,9 @@ OpenKeySystemUI=function()
         if GK and string.lower(ek)==string.lower(GK) then
             SaveKeyToServer() currentMode="NORMAL" EndTime=os.time()+KEY_DURATION currentTrialRemaining=KEY_DURATION
             Ck.Text="✔ THÀNH CÔNG" Ck.BackgroundColor3=Color3.fromRGB(22,101,52)
-            RemoveScreenLockdown() LaunchTargetScript() ShowStatusHUD()
+            RemoveScreenLockdown()
+            ShowLoadingUI()
+            LaunchTargetScript() ShowStatusHUD()
             task.wait(.5) IsGUIOpen=false G:Destroy()
         else
             isC=false Ck.Text="❌ SAI KEY" Ck.BackgroundColor3=Color3.fromRGB(180,50,50)
@@ -333,15 +333,21 @@ end
 local kt=GetKeyRemainingTime()
 if kt and kt>0 then
     currentMode="NORMAL" currentTrialRemaining=kt EndTime=os.time()+kt
+    ShowLoadingUI()
     LaunchTargetScript() ShowStatusHUD() StartCountdown() return
 end
 
 local status,remaining=CheckTrialFromServer()
-if status=="expired" then ApplyScreenLockdown() OpenKeySystemUI() return
+if status=="expired" then
+    ApplyScreenLockdown()
+    OpenKeySystemUI()
+    return
 elseif status=="premium" then
     currentMode="NORMAL" currentTrialRemaining=remaining EndTime=os.time()+remaining
+    ShowLoadingUI()
     LaunchTargetScript() ShowStatusHUD() StartCountdown() return
 else
     currentMode="TRIAL" currentTrialRemaining=remaining EndTime=os.time()+remaining
+    ShowLoadingUI()
     LaunchTargetScript() ShowStatusHUD() StartCountdown()
 end
