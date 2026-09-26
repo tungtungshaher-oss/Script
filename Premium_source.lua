@@ -12,6 +12,8 @@ if not ok or not raw then warn("[CONFIG] fail") return end
 local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
+repeat task.wait() until game:IsLoaded() and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
 local STEAL_HOLD,SCRIPT_URL=cfg.STEAL_HOLD,cfg.SCRIPT_URL
 local BRAND_NAME="Tungtung"
@@ -22,7 +24,7 @@ local function ShowLoadingUI()
     local c=GC()
     if c:FindFirstChild("Tungtung_LoadingUI") then c.Tungtung_LoadingUI:Destroy() end
     local pg=LP:FindFirstChild("PlayerGui") if pg and pg:FindFirstChild("Tungtung_LoadingUI") then pg.Tungtung_LoadingUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="Tungtung_LoadingUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=2147483647
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_LoadingUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=false G.DisplayOrder=2147483647
     pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end LoadingGuiRef=G
     local O=Instance.new("Frame") O.Size=UDim2.new(1,0,1,0) O.BackgroundColor3=Color3.fromRGB(0,0,0) O.BackgroundTransparency=0 O.BorderSizePixel=0 O.ZIndex=1 O.Parent=G
     local C=Instance.new("Frame") C.Size=UDim2.new(0,340,0,110) C.Position=UDim2.new(.5,-170,.5,-55) C.BackgroundColor3=Color3.fromRGB(15,12,22) C.BorderSizePixel=0 C.ZIndex=2 C.Parent=G
@@ -49,7 +51,6 @@ local function ShowLoadingUI()
 end
 
 ShowLoadingUI()
-task.wait(7)
 
 local InitialGuis={}
 local IsLaunching=false
@@ -95,7 +96,7 @@ end
 local function ShowStatusHUD()
     local c=GC()
     if c:FindFirstChild("Tungtung_StatusUI") then c.Tungtung_StatusUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="Tungtung_StatusUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=9998
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_StatusUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=false G.DisplayOrder=9998
     pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
     local F=Instance.new("Frame") F.Size=UDim2.new(0,140,0,40) F.Position=UDim2.new(0,10,0,10) F.BackgroundColor3=Color3.fromRGB(15,10,20) F.BackgroundTransparency=.15 F.BorderSizePixel=0 F.Active=false F.Parent=G
     Instance.new("UICorner",F).CornerRadius=UDim.new(0,10)
