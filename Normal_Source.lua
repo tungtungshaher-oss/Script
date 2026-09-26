@@ -29,7 +29,7 @@ local function ShowLoadingUI()
     local pg=LP:FindFirstChild("PlayerGui") if pg and pg:FindFirstChild("Tungtung_LoadingUI") then pg.Tungtung_LoadingUI:Destroy() end
     local G=Instance.new("ScreenGui") G.Name="Tungtung_LoadingUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=2147483647
     pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end LoadingGuiRef=G
-    local O=Instance.new("Frame") O.Size=UDim2.new(1,0,1,0) O.BackgroundColor3=Color3.fromRGB(0,0,0) O.BackgroundTransparency=.15 O.BorderSizePixel=0 O.ZIndex=1 O.Parent=G
+    local O=Instance.new("Frame") O.Size=UDim2.new(1,0,1,0) O.BackgroundColor3=Color3.fromRGB(0,0,0) O.BackgroundTransparency=0 O.BorderSizePixel=0 O.ZIndex=1 O.Parent=G
     local C=Instance.new("Frame") C.Size=UDim2.new(0,340,0,110) C.Position=UDim2.new(.5,-170,.5,-55) C.BackgroundColor3=Color3.fromRGB(15,12,22) C.BorderSizePixel=0 C.ZIndex=2 C.Parent=G
     Instance.new("UICorner",C).CornerRadius=UDim.new(0,14)
     local S=Instance.new("UIStroke",C) S.Thickness=1.6 S.Color=Color3.fromRGB(168,85,247) S.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
@@ -53,7 +53,7 @@ local function ShowLoadingUI()
     end)
 end
 
-ShowLoadingUI() task.wait(7)
+ShowLoadingUI()
 
 local InitialGuis,ScriptConnections,ActiveBlurEffect,InputBlockerScreen,OpenKeySystemUI={},{},nil,nil,nil
 local IsGUIOpen,LastGUIOpen,IsLaunching=false,0,false
@@ -212,7 +212,7 @@ local EndTime=os.time()+TRIAL_DURATION
 local function ShowStatusHUD()
     local c=GC()
     if c:FindFirstChild("Tungtung_StatusUI") then c.Tungtung_StatusUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="Tungtung_StatusUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=9999
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_StatusUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=9998
     pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
     local F=Instance.new("Frame") F.Size=UDim2.new(0,140,0,40) F.Position=UDim2.new(0,10,0,10) F.BackgroundColor3=Color3.fromRGB(15,10,20) F.BackgroundTransparency=.15 F.BorderSizePixel=0 F.Active=false F.Parent=G
     Instance.new("UICorner",F).CornerRadius=UDim.new(0,10)
@@ -239,7 +239,6 @@ end
 
 local function LaunchTargetScript()
     if IsLaunching then return end IsLaunching=true
-    if LoadingGuiRef and LoadingGuiRef.Parent then LoadingGuiRef:Destroy() LoadingGuiRef=nil end
     local k=GC():FindFirstChild("Tungtung_GetKeyUI") if k then k:Destroy() end
     task.wait(.2) TakeGuiSnapshot() getgenv().tungtung_active=true
     task.spawn(function() pcall(function() script_key="Trial" loadstring(game:HttpGet(SCRIPT_URL))() end) end)
@@ -263,7 +262,7 @@ OpenKeySystemUI=function()
     if now-LastGUIOpen<SPAM_COOLDOWN then print("[Anti-Spam] Đợi "..(SPAM_COOLDOWN-(now-LastGUIOpen)).."s") LogSpam() return end
     LastGUIOpen=now IsGUIOpen=true LogSpam()
     if CoreGui:FindFirstChild("Tungtung_GetKeyUI") then CoreGui.Tungtung_GetKeyUI:Destroy() end
-    local G=Instance.new("ScreenGui") G.Name="Tungtung_GetKeyUI" G.ResetOnSpawn=false G.DisplayOrder=99999
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_GetKeyUI" G.ResetOnSpawn=false G.DisplayOrder=2147483647
     pcall(function() G.Parent=GC() end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
     local M=Instance.new("Frame") M.Size=UDim2.new(0,260,0,180) M.Position=UDim2.new(.5,-130,.5,-90) M.BackgroundColor3=Color3.fromRGB(15,12,22) M.BorderSizePixel=0 M.Parent=G
     Instance.new("UICorner",M).CornerRadius=UDim.new(0,14)
