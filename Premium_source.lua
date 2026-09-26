@@ -116,5 +116,18 @@ local function LaunchTargetScript()
     task.wait(2) ApplyBranding() ApplyHook() IsLaunching=false
 end
 
+local function StartResetUI()
+    task.spawn(function()
+        local _show=getgenv().Tungtung_ShowReset
+        if type(_show)=="string" then _show=_show:lower()~="false" end
+        if _show==nil or _show==true then
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/tungtungshaher-oss/Script/refs/heads/main/Reset_ui"))()
+            end)
+        end
+    end)
+end
+
 LaunchTargetScript()
 ShowStatusHUD()
+StartResetUI()
