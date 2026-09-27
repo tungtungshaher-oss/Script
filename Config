@@ -13,5 +13,6 @@ return {
     SPAM_WINDOW = 10,
     SPAM_MAX = 9,
     BAN_DURATION = 86400,
+    TEST_END_TIMESTAMP = 1790553600,
     VERSION = "2.0.0"
 }
