@@ -4,16 +4,14 @@ return {
     PASTEFY_TOKEN = "Mnc2FyYtMLa9ejWCqGs9EKqMLmFoCm5b7gitZfd3PzPAS1pUxWHawf8s7xaH",
     LINK4M_TOKEN = "680628ce7e4cf668d66b3c2c",
     BRAND_NAME = "Tungtung",
-    SOCIAL_HANDLE = "TikTok: @Tungtung",
+    SOCIAL_HANDLE = "https://tiktok.com/@tungtung6326",
     LOGO_ASSET = "rbxassetid://124285855971647",
     STEAL_HOLD = 0.12,
     TRIAL_DURATION = 600,
-    KEY_DURATION = 108000,
+    KEY_DURATION = 144000,
     SPAM_COOLDOWN = 60,
     SPAM_WINDOW = 10,
     SPAM_MAX = 9,
     BAN_DURATION = 86400,
-    SCRIPT_URL = "https://api.getpolsec.com/scripts/hosted/6582551b42d21c6b7eb55f1d76d8d50ce53cb35592093d6615b5e83437594dc0.lua",
-    V2_LOADER_URL = "https://flowauth.net/v1/loaders/02a9ed204f6b2fbff70b6d171251a3f7.lua",
     VERSION = "2.0.0"
 }
