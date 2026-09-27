@@ -1,38 +1,47 @@
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local StarterGui = game:GetService("StarterGui")
-local UserInputService = game:GetService("UserInputService")
-local ProximityPromptService = game:GetService("ProximityPromptService")
-local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
 local CONFIG_URL = "https://raw.githubusercontent.com/tungtungshaher-oss/Script/refs/heads/main/Config"
+local TweenService,RunService=game:GetService("TweenService"),game:GetService("RunService")
+local HttpService,CoreGui=game:GetService("HttpService"),game:GetService("CoreGui")
+local Players,Lighting=game:GetService("Players"),game:GetService("Lighting")
+local Workspace,PPS=game:GetService("Workspace"),game:GetService("ProximityPromptService")
+local StarterGui=game:GetService("StarterGui")
+local UserInputService=game:GetService("UserInputService")
+local LP=Players.LocalPlayer
 
-local function GC() if gethui then local ok,h=pcall(gethui) if ok and h then return h end end return CoreGui or PlayerGui end
-
-pcall(function() if PlayerGui:FindFirstChild("TungTungScreen") then PlayerGui.TungTungScreen:Destroy() end end)
-pcall(function() if CoreGui:FindFirstChild("TungTungScreen") then CoreGui.TungTungScreen:Destroy() end end)
+local function GC() if gethui then local ok,h=pcall(gethui) if ok and h then return h end end return CoreGui or LP:WaitForChild("PlayerGui") end
 
 local ok,raw=pcall(function() return game:HttpGet(CONFIG_URL.."?v="..tick(),true) end)
 if not ok or not raw then warn("[CONFIG] fail") return end
 local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
+repeat task.wait() until game:IsLoaded() and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+
+local END_TIMESTAMP = cfg.TEST_END_TIMESTAMP or 0
+if os.time() >= END_TIMESTAMP then
+    local c=GC()
+    local G=Instance.new("ScreenGui") G.Name="TungTung_Ended" G.ResetOnSpawn=false G.IgnoreGuiInset=true G.DisplayOrder=2147483647
+    pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
+    local Main=Instance.new("Frame") Main.Size=UDim2.new(0,320,0,120) Main.Position=UDim2.new(.5,-160,.5,-60) Main.BackgroundColor3=Color3.fromRGB(15,12,22) Main.BorderSizePixel=0 Main.Parent=G
+    Instance.new("UICorner",Main).CornerRadius=UDim.new(0,12)
+    local S=Instance.new("UIStroke",Main) S.Thickness=1.5 S.Color=Color3.fromRGB(200,50,50) S.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+    local Title=Instance.new("TextLabel") Title.Size=UDim2.new(1,-20,0,36) Title.Position=UDim2.new(0,10,0,20) Title.BackgroundTransparency=1 Title.Text="HẾT TRIAL" Title.TextColor3=Color3.fromRGB(239,68,68) Title.TextSize=20 Title.Font=Enum.Font.GothamBlack Title.Parent=Main
+    local Msg=Instance.new("TextLabel") Msg.Size=UDim2.new(1,-20,0,40) Msg.Position=UDim2.new(0,10,0,60) Msg.BackgroundTransparency=1 Msg.Text="Trial đã hết.\nVui lòng quay lại sau." Msg.TextColor3=Color3.fromRGB(200,200,200) Msg.TextSize=12 Msg.Font=Enum.Font.Gotham Msg.TextWrapped=true Msg.Parent=Main
+    return
+end
+
 local JSONBIN_KEY,JSONBIN_BIN=cfg.JSONBIN_KEY,cfg.JSONBIN_BIN
 local JSONBIN_URL="https://api.jsonbin.io/v3/b/"..JSONBIN_BIN
 local PASTEFY_TOKEN,LINK4M_TOKEN=cfg.PASTEFY_TOKEN,cfg.LINK4M_TOKEN
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local KEY_DURATION=cfg.KEY_DURATION or 144000
+local STEAL_HOLD,KEY_DURATION=cfg.STEAL_HOLD,cfg.KEY_DURATION
+local TRIAL_DURATION=cfg.TRIAL_DURATION
 local BRAND_NAME="Tungtung"
 
 local function HttpReq(o) local f=(syn and syn.request) or (http and http.request) or http_request or request if f then return f(o) end return nil end
 local function GetBin() local r=HttpReq({Url=JSONBIN_URL.."/latest",Method="GET",Headers={["X-Master-Key"]=JSONBIN_KEY}}) if r and r.Body then local ok,d=pcall(function() return HttpService:JSONDecode(r.Body) end) if ok and d and d.record then return d.record end end return {} end
 local function UpdateBin(d) local r=HttpReq({Url=JSONBIN_URL,Method="PUT",Headers={["Content-Type"]="application/json",["X-Master-Key"]=JSONBIN_KEY},Body=HttpService:JSONEncode(d)}) return r~=nil end
-local function getHWID() if gethwid then local ok,h=pcall(gethwid) if ok and h then return tostring(h) end end if syn and syn.get_hwid then local ok,h=pcall(function() return syn.get_hwid() end) if ok and h then return tostring(h) end end return tostring(LocalPlayer.UserId).."_"..tostring(LocalPlayer.AccountAge) end
-local HWID,USERNAME=getHWID(),LocalPlayer.Name
+local function getHWID() if gethwid then local ok,h=pcall(gethwid) if ok and h then return tostring(h) end end if syn and syn.get_hwid then local ok,h=pcall(function() return syn.get_hwid() end) if ok and h then return tostring(h) end end return tostring(LP.UserId).."_"..tostring(LP.AccountAge) end
+local HWID,USERNAME=getHWID(),LP.Name
 
 local LoadingGui = Instance.new("ScreenGui")
 LoadingGui.Name = "TungTungLoading"
@@ -40,7 +49,7 @@ LoadingGui.ResetOnSpawn = false
 LoadingGui.IgnoreGuiInset = true
 LoadingGui.DisplayOrder = 2147483647
 pcall(function() LoadingGui.Parent = GC() end)
-if not LoadingGui.Parent then LoadingGui.Parent = PlayerGui end
+if not LoadingGui.Parent then LoadingGui.Parent = LP:WaitForChild("PlayerGui") end
 
 local bg = Instance.new("Frame")
 bg.Size = UDim2.new(1,0,1,0)
@@ -117,7 +126,8 @@ getgenv().Tungtung_BypassEnabled = true
 local function HookKick()
     pcall(function()
         if hookfunction then
-            LocalPlayer.Kick = newcclosure(function(self, ...) return nil end)
+            LocalPlayer = LP
+            LP.Kick = newcclosure(function(self, ...) return nil end)
         end
     end)
 end
@@ -145,7 +155,7 @@ local function BypassStateCheck()
         while getgenv().Tungtung_BypassEnabled do
             task.wait(0.1)
             pcall(function()
-                local char = LocalPlayer.Character
+                local char = LP.Character
                 if char then
                     local hum = char:FindFirstChildOfClass("Humanoid")
                     if hum then hum:SetStateEnabled(Enum.HumanoidStateType.Teleporting, true) end
@@ -160,7 +170,7 @@ local function SpoofSpeed()
         while getgenv().Tungtung_BypassEnabled do
             task.wait(0.5)
             pcall(function()
-                local char = LocalPlayer.Character
+                local char = LP.Character
                 if char then
                     local hum = char:FindFirstChildOfClass("Humanoid")
                     if hum then
@@ -231,10 +241,10 @@ local function TeleportRoute(character)
     IsAntiHitRunning = false
 end
 
-ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
-    if player ~= LocalPlayer then return end
+PPS.PromptTriggered:Connect(function(prompt, player)
+    if player ~= LP then return end
     if not AntiHitEnabled or IsAntiHitRunning then return end
-    local character = LocalPlayer.Character
+    local character = LP.Character
     if not character then return end
     task.spawn(function() TeleportRoute(character) end)
 end)
@@ -246,7 +256,7 @@ ScreenGui.IgnoreGuiInset = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.DisplayOrder = 99999
 pcall(function() ScreenGui.Parent = CoreGui end)
-if not ScreenGui.Parent then ScreenGui.Parent = PlayerGui end
+if not ScreenGui.Parent then ScreenGui.Parent = LP:WaitForChild("PlayerGui") end
 
 local floatBtn = Instance.new("ImageButton")
 floatBtn.Size = UDim2.fromOffset(48, 48)
@@ -306,7 +316,6 @@ title.TextSize = 15
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.ZIndex = 5002
 title.Parent = header
-
 local titleGrad = Instance.new("UIGradient", title)
 titleGrad.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(253, 230, 138)),
@@ -422,7 +431,6 @@ keyInput.Font = Enum.Font.Gotham
 keyInput.ZIndex = 5002
 keyInput.Parent = content
 Instance.new("UICorner", keyInput).CornerRadius = UDim.new(0, 8)
-
 local keyStroke = Instance.new("UIStroke", keyInput)
 keyStroke.Thickness = 1
 keyStroke.Color = Color3.fromRGB(60, 40, 100)
@@ -552,7 +560,7 @@ activateBtn.MouseButton1Click:Connect(function()
                 first_seen = o.first_seen or now,
                 last_seen = now,
                 username = USERNAME,
-                userid = LocalPlayer.UserId,
+                userid = LP.UserId,
                 display = "@" .. USERNAME,
                 key_activated = true,
                 expire = now + KEY_DURATION,
@@ -605,7 +613,7 @@ activateBtn.MouseButton1Click:Connect(function()
             first_seen = o.first_seen or now,
             last_seen = now,
             username = USERNAME,
-            userid = LocalPlayer.UserId,
+            userid = LP.UserId,
             display = "@" .. USERNAME,
             key_activated = true,
             expire = now + dur,
