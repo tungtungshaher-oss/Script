@@ -1,5 +1,6 @@
 local CONFIG_URL = "https://raw.githubusercontent.com/tungtungshaher-oss/Script/refs/heads/main/Config"
 local TweenService=game:GetService("TweenService")
+local HttpService=game:GetService("HttpService")
 local CoreGui=game:GetService("CoreGui")
 local Players,Lighting=game:GetService("Players"),game:GetService("Lighting")
 local Workspace,PPS=game:GetService("Workspace"),game:GetService("ProximityPromptService")
@@ -14,7 +15,71 @@ local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 repeat task.wait() until game:IsLoaded() and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
 
-local ChosenVersion=1
+local function SavePref(k,v)
+    getgenv()["Tungtung_pref_"..k]=v
+    pcall(function()
+        if writefile and isfile and readfile then
+            local d={}
+            if isfile("Tungtung_prefs.json") then
+                pcall(function() d=HttpService:JSONDecode(readfile("Tungtung_prefs.json")) end)
+            end
+            d[k]=v
+            writefile("Tungtung_prefs.json",HttpService:JSONEncode(d))
+        end
+    end)
+end
+
+local function LoadPref(k)
+    local ok,v=pcall(function()
+        if readfile and isfile and isfile("Tungtung_prefs.json") then
+            return HttpService:JSONDecode(readfile("Tungtung_prefs.json"))[k]
+        end
+        return nil
+    end)
+    if ok and v~=nil then return v end
+    return getgenv()["Tungtung_pref_"..k]
+end
+
+local SavedLang=LoadPref("lang")
+local SavedVersion=LoadPref("version")
+local SavedNotice=LoadPref("notice")
+
+local Lang=SavedLang or "vi"
+local ChosenVersion=SavedVersion or 1
+local SkipNotice=(SavedNotice==true)
+
+local function T(vi,en) if Lang=="en" then return en else return vi end end
+getgenv().Tungtung_Lang=Lang
+
+local function ShowLanguagePicker()
+    local c=GC()
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_LangUI" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=2147483647
+    pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
+    local Overlay=Instance.new("Frame") Overlay.Size=UDim2.new(1,0,1,0) Overlay.BackgroundColor3=Color3.fromRGB(0,0,0) Overlay.BackgroundTransparency=.6 Overlay.BorderSizePixel=0 Overlay.ZIndex=1 Overlay.Parent=G
+    local Main=Instance.new("Frame") Main.Size=UDim2.new(0,360,0,240) Main.Position=UDim2.new(.5,-180,.5,-120) Main.BackgroundColor3=Color3.fromRGB(12,8,24) Main.BorderSizePixel=0 Main.ZIndex=2 Main.Parent=G
+    Instance.new("UICorner",Main).CornerRadius=UDim.new(0,20)
+    local Grad=Instance.new("UIGradient") Grad.Rotation=135
+    Grad.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(25,15,45)),ColorSequenceKeypoint.new(1,Color3.fromRGB(15,10,30))} Grad.Parent=Main
+    local Stroke=Instance.new("UIStroke",Main) Stroke.Thickness=2 Stroke.Color=Color3.fromRGB(168,85,247) Stroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+    local Title=Instance.new("TextLabel") Title.Size=UDim2.new(1,-20,0,28) Title.Position=UDim2.new(0,10,0,20) Title.BackgroundTransparency=1 Title.Text="LANGUAGE / NGÔN NGỮ" Title.TextColor3=Color3.fromRGB(253,230,138) Title.TextSize=16 Title.Font=Enum.Font.GothamBlack Title.ZIndex=3 Title.Parent=Main
+    local Sub=Instance.new("TextLabel") Sub.Size=UDim2.new(1,-20,0,20) Sub.Position=UDim2.new(0,10,0,52) Sub.BackgroundTransparency=1 Sub.Text="Choose your language / Chọn ngôn ngữ" Sub.TextColor3=Color3.fromRGB(180,150,220) Sub.TextSize=11 Sub.Font=Enum.Font.Gotham Sub.ZIndex=3 Sub.Parent=Main
+    local function MakeBtn(text,y,color)
+        local b=Instance.new("TextButton") b.Size=UDim2.new(1,-40,0,48) b.Position=UDim2.new(0,20,0,y) b.BackgroundColor3=color b.Text=text b.TextColor3=Color3.fromRGB(255,255,255) b.TextSize=14 b.Font=Enum.Font.GothamBold b.BorderSizePixel=0 b.ZIndex=3 b.Parent=Main
+        Instance.new("UICorner",b).CornerRadius=UDim.new(0,12)
+        local st=Instance.new("UIStroke",b) st.Thickness=1.5 st.Color=Color3.fromRGB(120,90,180) st.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+        return b
+    end
+    local VIBtn=MakeBtn("TIẾNG VIỆT",95,Color3.fromRGB(124,92,255))
+    local ENBtn=MakeBtn("ENGLISH",155,Color3.fromRGB(245,158,11))
+    VIBtn.MouseButton1Click:Connect(function() Lang="vi" VIBtn.BackgroundColor3=Color3.fromRGB(50,200,100) task.wait(.15) G:Destroy() end)
+    ENBtn.MouseButton1Click:Connect(function() Lang="en" ENBtn.BackgroundColor3=Color3.fromRGB(50,200,100) task.wait(.15) G:Destroy() end)
+    while G.Parent do task.wait(.1) end
+end
+
+if not SavedLang then
+    ShowLanguagePicker()
+    SavePref("lang",Lang)
+end
 
 local V2_HOOK = function()
     local CONFIG = {
@@ -74,12 +139,8 @@ local function ShowVersionPicker()
     local Grad=Instance.new("UIGradient") Grad.Rotation=135
     Grad.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(25,15,45)),ColorSequenceKeypoint.new(1,Color3.fromRGB(15,10,30))} Grad.Parent=Main
     local Stroke=Instance.new("UIStroke",Main) Stroke.Thickness=2 Stroke.Color=Color3.fromRGB(168,85,247) Stroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
-    local StrokeGrad=Instance.new("UIGradient") StrokeGrad.Rotation=45
-    StrokeGrad.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(253,230,138)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(168,85,247)),ColorSequenceKeypoint.new(1,Color3.fromRGB(6,182,212))} StrokeGrad.Parent=Stroke
-    local Title=Instance.new("TextLabel") Title.Size=UDim2.new(1,-20,0,26) Title.Position=UDim2.new(0,10,0,20) Title.BackgroundTransparency=1 Title.Text="CHỌN PHIÊN BẢN" Title.TextColor3=Color3.fromRGB(253,230,138) Title.TextSize=18 Title.Font=Enum.Font.GothamBlack Title.ZIndex=3 Title.Parent=Main
-    local TitleGrad=Instance.new("UIGradient") TitleGrad.Rotation=0
-    TitleGrad.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(253,230,138)),ColorSequenceKeypoint.new(1,Color3.fromRGB(245,158,11))} TitleGrad.Parent=Title
-    local Sub=Instance.new("TextLabel") Sub.Size=UDim2.new(1,-20,0,16) Sub.Position=UDim2.new(0,10,0,48) Sub.BackgroundTransparency=1 Sub.Text="Chọn script bạn muốn sử dụng" Sub.TextColor3=Color3.fromRGB(180,150,220) Sub.TextSize=11 Sub.Font=Enum.Font.Gotham Sub.ZIndex=3 Sub.Parent=Main
+    local Title=Instance.new("TextLabel") Title.Size=UDim2.new(1,-20,0,26) Title.Position=UDim2.new(0,10,0,20) Title.BackgroundTransparency=1 Title.Text=T("CHỌN PHIÊN BẢN","CHOOSE VERSION") Title.TextColor3=Color3.fromRGB(253,230,138) Title.TextSize=18 Title.Font=Enum.Font.GothamBlack Title.ZIndex=3 Title.Parent=Main
+    local Sub=Instance.new("TextLabel") Sub.Size=UDim2.new(1,-20,0,16) Sub.Position=UDim2.new(0,10,0,48) Sub.BackgroundTransparency=1 Sub.Text=T("Chọn script bạn muốn sử dụng","Choose your script") Sub.TextColor3=Color3.fromRGB(180,150,220) Sub.TextSize=11 Sub.Font=Enum.Font.Gotham Sub.ZIndex=3 Sub.Parent=Main
     local function MakeVersionCard(y, icon, title, desc, color, onClick)
         local Card=Instance.new("TextButton") Card.Size=UDim2.new(1,-30,0,64) Card.Position=UDim2.new(0,15,0,y) Card.BackgroundColor3=Color3.fromRGB(25,18,45) Card.Text="" Card.AutoButtonColor=false Card.BorderSizePixel=0 Card.ZIndex=3 Card.Parent=Main
         Instance.new("UICorner",Card).CornerRadius=UDim.new(0,12)
@@ -96,30 +157,49 @@ local function ShowVersionPicker()
     end
     local V1Card, V1Stroke
     local V2Card, V2Stroke
-    local function Deselect(card, stroke)
-        card:SetAttribute("selected", false)
-        stroke.Color=Color3.fromRGB(80,60,120) stroke.Thickness=1.5
-    end
-    local function Select(card, stroke, color)
-        card:SetAttribute("selected", true)
-        stroke.Color=color stroke.Thickness=2.5
-    end
-    V1Card, V1Stroke = MakeVersionCard(80, "V1", "Bản Cũ", "Script gốc, ổn định", Color3.fromRGB(124,92,255), function(card, stroke, color) ChosenVersion=1 Deselect(V2Card, V2Stroke) Select(card, stroke, color) end)
-    V2Card, V2Stroke = MakeVersionCard(152, "V2", "Script Mới", "Ổn định", Color3.fromRGB(245,158,11), function(card, stroke, color) ChosenVersion=2 Deselect(V1Card, V1Stroke) Select(card, stroke, color) end)
-    ChosenVersion=1
+    local function Deselect(card, stroke) card:SetAttribute("selected", false) stroke.Color=Color3.fromRGB(80,60,120) stroke.Thickness=1.5 end
+    local function Select(card, stroke, color) card:SetAttribute("selected", true) stroke.Color=color stroke.Thickness=2.5 end
+    V1Card, V1Stroke = MakeVersionCard(80, "V1", T("Bản Cũ","Old"), T("Script gốc, ổn định","Original, stable"), Color3.fromRGB(124,92,255), function(card, stroke, color) ChosenVersion=1 Deselect(V2Card, V2Stroke) Select(card, stroke, color) end)
+    V2Card, V2Stroke = MakeVersionCard(152, "V2", T("Script Mới","New"), T("Ổn định","Stable"), Color3.fromRGB(245,158,11), function(card, stroke, color) ChosenVersion=2 Deselect(V1Card, V1Stroke) Select(card, stroke, color) end)
     Select(V1Card, V1Stroke, Color3.fromRGB(124,92,255))
-    local OKBtn=Instance.new("TextButton") OKBtn.Size=UDim2.new(1,-30,0,44) OKBtn.Position=UDim2.new(0,15,1,-58) OKBtn.BackgroundColor3=Color3.fromRGB(50,200,100) OKBtn.Text="XÁC NHẬN" OKBtn.TextColor3=Color3.fromRGB(255,255,255) OKBtn.TextSize=14 OKBtn.Font=Enum.Font.GothamBlack OKBtn.BorderSizePixel=0 OKBtn.ZIndex=3 OKBtn.Parent=Main
+    local OKBtn=Instance.new("TextButton") OKBtn.Size=UDim2.new(1,-30,0,44) OKBtn.Position=UDim2.new(0,15,1,-58) OKBtn.BackgroundColor3=Color3.fromRGB(50,200,100) OKBtn.Text=T("XÁC NHẬN","CONFIRM") OKBtn.TextColor3=Color3.fromRGB(255,255,255) OKBtn.TextSize=14 OKBtn.Font=Enum.Font.GothamBlack OKBtn.BorderSizePixel=0 OKBtn.ZIndex=3 OKBtn.Parent=Main
     Instance.new("UICorner",OKBtn).CornerRadius=UDim.new(0,12)
     local OKStroke=Instance.new("UIStroke",OKBtn) OKStroke.Thickness=1.5 OKStroke.Color=Color3.fromRGB(100,255,150) OKStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
     local OKGrad=Instance.new("UIGradient") OKGrad.Rotation=90
     OKGrad.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(34,197,94)),ColorSequenceKeypoint.new(1,Color3.fromRGB(22,163,74))} OKGrad.Parent=OKBtn
-    OKBtn.MouseEnter:Connect(function() TweenService:Create(OKBtn,TweenInfo.new(.2),{Size=UDim2.new(1,-24,0,48),Position=UDim2.new(0,12,1,-60)}):Play() end)
-    OKBtn.MouseLeave:Connect(function() TweenService:Create(OKBtn,TweenInfo.new(.2),{Size=UDim2.new(1,-30,0,44),Position=UDim2.new(0,15,1,-58)}):Play() end)
     OKBtn.MouseButton1Click:Connect(function() G:Destroy() end)
     while G.Parent do task.wait(.1) end
 end
 
-ShowVersionPicker()
+if not SavedVersion then
+    ShowVersionPicker()
+    SavePref("version",ChosenVersion)
+end
+
+if ChosenVersion==2 and not SkipNotice then
+    local c=GC()
+    local G=Instance.new("ScreenGui") G.Name="Tungtung_V2Notice" G.ResetOnSpawn=false G.ZIndexBehavior=Enum.ZIndexBehavior.Sibling G.IgnoreGuiInset=true G.DisplayOrder=2147483646
+    pcall(function() G.Parent=c end) if not G.Parent then G.Parent=LP:WaitForChild("PlayerGui") end
+    local Overlay=Instance.new("Frame") Overlay.Size=UDim2.new(1,0,1,0) Overlay.BackgroundColor3=Color3.fromRGB(0,0,0) Overlay.BackgroundTransparency=.6 Overlay.BorderSizePixel=0 Overlay.ZIndex=1 Overlay.Parent=G
+    local Main=Instance.new("Frame") Main.Size=UDim2.new(0,400,0,220) Main.Position=UDim2.new(.5,-200,.5,-110) Main.BackgroundColor3=Color3.fromRGB(12,8,24) Main.BorderSizePixel=0 Main.ZIndex=2 Main.Parent=G
+    Instance.new("UICorner",Main).CornerRadius=UDim.new(0,20)
+    local Grad=Instance.new("UIGradient") Grad.Rotation=135
+    Grad.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(25,15,45)),ColorSequenceKeypoint.new(1,Color3.fromRGB(15,10,30))} Grad.Parent=Main
+    local Stroke=Instance.new("UIStroke",Main) Stroke.Thickness=2 Stroke.Color=Color3.fromRGB(245,158,11) Stroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+    local Title=Instance.new("TextLabel") Title.Size=UDim2.new(1,-20,0,28) Title.Position=UDim2.new(0,10,0,18) Title.BackgroundTransparency=1 Title.Text=T("LƯU Ý QUAN TRỌNG","IMPORTANT NOTICE") Title.TextColor3=Color3.fromRGB(253,230,138) Title.TextSize=18 Title.Font=Enum.Font.GothamBlack Title.ZIndex=3 Title.Parent=Main
+    local Msg1=Instance.new("TextLabel") Msg1.Size=UDim2.new(1,-20,0,50) Msg1.Position=UDim2.new(0,10,0,58) Msg1.BackgroundTransparency=1 Msg1.Text=T("Tương Tác Nhanh đã được bật.\nVui lòng KHÔNG bật trong Menu!","Quick Interaction is enabled.\nPlease do NOT enable it in the Menu!") Msg1.TextColor3=Color3.fromRGB(255,255,255) Msg1.TextSize=13 Msg1.Font=Enum.Font.GothamBold Msg1.TextWrapped=true Msg1.ZIndex=3 Msg1.Parent=Main
+    local Msg2=Instance.new("TextLabel") Msg2.Size=UDim2.new(1,-20,0,50) Msg2.Position=UDim2.new(0,10,0,114) Msg2.BackgroundTransparency=1 Msg2.Text=T("Quick Interaction is enabled.\nPlease do not enable it in the Menu!","Tương Tác Nhanh đã được bật.\nVui lòng không bật trong Menu!") Msg2.TextColor3=Color3.fromRGB(180,150,220) Msg2.TextSize=11 Msg2.Font=Enum.Font.Gotham Msg2.TextWrapped=true Msg2.ZIndex=3 Msg2.Parent=Main
+    local OKBtn=Instance.new("TextButton") OKBtn.Size=UDim2.new(1,-30,0,42) OKBtn.Position=UDim2.new(0,15,1,-56) OKBtn.BackgroundColor3=Color3.fromRGB(50,200,100) OKBtn.Text=T("ĐÃ HIỂU","GOT IT") OKBtn.TextColor3=Color3.fromRGB(255,255,255) OKBtn.TextSize=14 OKBtn.Font=Enum.Font.GothamBlack OKBtn.BorderSizePixel=0 OKBtn.ZIndex=3 OKBtn.Parent=Main
+    Instance.new("UICorner",OKBtn).CornerRadius=UDim.new(0,10)
+    local OKStroke=Instance.new("UIStroke",OKBtn) OKStroke.Thickness=1.5 OKStroke.Color=Color3.fromRGB(100,255,150) OKStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+    local OKGrad=Instance.new("UIGradient") OKGrad.Rotation=90
+    OKGrad.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(34,197,94)),ColorSequenceKeypoint.new(1,Color3.fromRGB(22,163,74))} OKGrad.Parent=OKBtn
+    OKBtn.MouseButton1Click:Connect(function()
+        SavePref("notice",true)
+        G:Destroy()
+    end)
+    while G.Parent do task.wait(.1) end
+end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
 local STEAL_HOLD,SCRIPT_URL=cfg.STEAL_HOLD,cfg.SCRIPT_URL
@@ -141,8 +221,8 @@ local function ShowLoadingUI()
     local S=Instance.new("UIStroke",C) S.Thickness=1.6 S.Color=Color3.fromRGB(168,85,247) S.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
     local D=Instance.new("Frame") D.Size=UDim2.new(0,8,0,8) D.Position=UDim2.new(0,15,0,18) D.BackgroundColor3=Color3.fromRGB(168,85,247) D.BorderSizePixel=0 D.ZIndex=3 D.Parent=C
     Instance.new("UICorner",D).CornerRadius=UDim.new(1,0)
-    local T=Instance.new("TextLabel") T.Size=UDim2.new(1,-40,0,24) T.Position=UDim2.new(0,30,0,10) T.BackgroundTransparency=1 T.Text="ĐANG TẢI SCRIPT" T.TextColor3=Color3.fromRGB(253,230,138) T.TextSize=15 T.Font=Enum.Font.GothamBlack T.TextXAlignment=Enum.TextXAlignment.Left T.ZIndex=3 T.Parent=C
-    local Sub=Instance.new("TextLabel") Sub.Size=UDim2.new(1,-30,0,16) Sub.Position=UDim2.new(0,15,0,42) Sub.BackgroundTransparency=1 Sub.Text="Hoàn thành trong 6-10s" Sub.TextColor3=Color3.fromRGB(200,200,200) Sub.TextSize=11 Sub.Font=Enum.Font.Gotham Sub.TextXAlignment=Enum.TextXAlignment.Left Sub.ZIndex=3 Sub.Parent=C
+    local Tt=Instance.new("TextLabel") Tt.Size=UDim2.new(1,-40,0,24) Tt.Position=UDim2.new(0,30,0,10) Tt.BackgroundTransparency=1 Tt.Text=T("ĐANG TẢI SCRIPT","LOADING SCRIPT") Tt.TextColor3=Color3.fromRGB(253,230,138) Tt.TextSize=15 Tt.Font=Enum.Font.GothamBlack Tt.TextXAlignment=Enum.TextXAlignment.Left Tt.ZIndex=3 Tt.Parent=C
+    local Sub=Instance.new("TextLabel") Sub.Size=UDim2.new(1,-30,0,16) Sub.Position=UDim2.new(0,15,0,42) Sub.BackgroundTransparency=1 Sub.Text=T("Hoàn thành trong 6-10s","Completes in 6-10s") Sub.TextColor3=Color3.fromRGB(200,200,200) Sub.TextSize=11 Sub.Font=Enum.Font.Gotham Sub.TextXAlignment=Enum.TextXAlignment.Left Sub.ZIndex=3 Sub.Parent=C
     local BB=Instance.new("Frame") BB.Size=UDim2.new(1,-30,0,6) BB.Position=UDim2.new(0,15,1,-30) BB.BackgroundColor3=Color3.fromRGB(30,20,40) BB.BorderSizePixel=0 BB.ZIndex=3 BB.Parent=C
     Instance.new("UICorner",BB).CornerRadius=UDim.new(1,0)
     local B=Instance.new("Frame") B.Size=UDim2.new(0,0,1,0) B.BackgroundColor3=Color3.fromRGB(168,85,247) B.BorderSizePixel=0 B.ZIndex=4 B.Parent=BB
@@ -173,9 +253,9 @@ end
 
 local function ApplyBranding()
     local tuned={}
-    local function T(p) if tuned[p] then return end tuned[p]=true if p:IsA("ProximityPrompt") then p.HoldDuration=STEAL_HOLD p.RequiresLineOfSight=false pcall(function() p.MaxActivationDistance=math.max(p.MaxActivationDistance,25) end) end end
-    for _,d in ipairs(Workspace:GetDescendants()) do T(d) end
-    task.spawn(function() while getgenv().tungtung_active do task.wait(3) for _,d in ipairs(Workspace:GetDescendants()) do T(d) end for o in pairs(tuned) do if not o or not o.Parent then tuned[o]=nil end end end end)
+    local function T2(p) if tuned[p] then return end tuned[p]=true if p:IsA("ProximityPrompt") then p.HoldDuration=STEAL_HOLD p.RequiresLineOfSight=false pcall(function() p.MaxActivationDistance=math.max(p.MaxActivationDistance,25) end) end end
+    for _,d in ipairs(Workspace:GetDescendants()) do T2(d) end
+    task.spawn(function() while getgenv().tungtung_active do task.wait(3) for _,d in ipairs(Workspace:GetDescendants()) do T2(d) end for o in pairs(tuned) do if not o or not o.Parent then tuned[o]=nil end end end end)
     PPS.PromptButtonHoldBegan:Connect(function(p) pcall(function() if not p or not p.Parent then return end p.HoldDuration=STEAL_HOLD task.delay(STEAL_HOLD,function() if fireproximityprompt and p and p.Parent then pcall(function() fireproximityprompt(p) end) end end) end) end)
 end
 
@@ -224,9 +304,7 @@ local function LaunchTargetScript()
         pcall(function()
             if ChosenVersion==2 then
                 V2_HOOK()
-                task.spawn(function()
-                    loadstring(game:HttpGet(V2_URL))()
-                end)
+                task.spawn(function() loadstring(game:HttpGet(V2_URL))() end)
             else
                 script_key="Premium"
                 loadstring(game:HttpGet(SCRIPT_URL))()
@@ -238,6 +316,7 @@ end
 
 local function StartResetUI()
     task.spawn(function()
+        getgenv().Tungtung_Lang=Lang
         local _show=getgenv().Tungtung_ShowReset
         if type(_show)=="string" then _show=_show:lower()~="false" end
         if _show==nil or _show==true then
