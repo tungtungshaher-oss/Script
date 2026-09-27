@@ -1,5 +1,4 @@
 local Players=game:GetService("Players")
-local RunService=game:GetService("RunService")
 local StarterGui=game:GetService("StarterGui")
 local UserInputService=game:GetService("UserInputService")
 local ProximityPromptService=game:GetService("ProximityPromptService")
@@ -75,24 +74,32 @@ if END_TIMESTAMP>0 and os.time()>=END_TIMESTAMP then
     return
 end
 
-local function HttpReq(o) local f=(syn and syn.request) or (http and http.request) or http_request or request if f then return f(o) end return nil end
+local function HttpReq(o)
+    local f=(syn and syn.request) or (http and http.request) or http_request or request
+    if f then return f(o) end
+    return nil
+end
+
 local function GetBin()
-    local r=HttpReq({Url=JSONBIN_URL.."/latest",Method="GET",Headers={["X-Master-Key"]=JSONBIN_KEY}})
+    local r=HttpReq({Url=JSONBIN_URL.."/latest?v="..tick(),Method="GET",Headers={["X-Master-Key"]=JSONBIN_KEY}})
     if r and r.Body then
         local o,d=pcall(function() return HttpService:JSONDecode(r.Body) end)
         if o and d and d.record then return d.record end
     end
     return {}
 end
+
 local function UpdateBin(d)
     local r=HttpReq({Url=JSONBIN_URL,Method="PUT",Headers={["Content-Type"]="application/json",["X-Master-Key"]=JSONBIN_KEY},Body=HttpService:JSONEncode(d)})
     return r~=nil
 end
+
 local function getHWID()
     if gethwid then local o,h=pcall(gethwid) if o and h then return tostring(h) end end
     if syn and syn.get_hwid then local o,h=pcall(function() return syn.get_hwid() end) if o and h then return tostring(h) end end
     return tostring(LP.UserId).."_"..tostring(LP.AccountAge)
 end
+
 local HWID,USERNAME=getHWID(),LP.Name
 
 local function CheckTrialFromServer()
@@ -199,8 +206,8 @@ TweenService:Create(bar,TweenInfo.new(3,Enum.EasingStyle.Linear),{Size=UDim2.new
 task.wait(3)
 LoadingGui:Destroy()
 
-getgenv().Tungtung_AntiHit=false
 getgenv().Tungtung_BypassEnabled=true
+getgenv().Tungtung_AntiHit=false
 
 pcall(function()
     if hookfunction and getrawmetatable then
@@ -316,7 +323,7 @@ end
 
 local currentMode="TRIAL"
 local EndTime=os.time()+TRIAL_DURATION
-local TimeGui
+local TimeGui=nil
 
 local function ShowTimeUI()
     if TimeGui then pcall(function() TimeGui:Destroy() end) end
@@ -381,9 +388,11 @@ local function ShowTimeUI()
         while TimeGui and TimeGui.Parent do
             local r=EndTime-os.time()
             if r<0 then r=0 end
-            local col=Color3.fromRGB(245,158,11)
+            local col
             if currentMode=="NORMAL" then
                 col=Color3.fromRGB(0,255,163)
+            else
+                col=Color3.fromRGB(245,158,11)
             end
             if r<=0 then
                 col=Color3.fromRGB(239,68,68)
@@ -826,6 +835,33 @@ local function ShowKeyUI()
     end)
 end
 
+local function TerminateAll()
+    getgenv().Tungtung_BypassEnabled=false
+    getgenv().Tungtung_AntiHit=false
+    AntiHitEnabled=false
+    if TimeGui then pcall(function() TimeGui:Destroy() end) TimeGui=nil end
+    for _,n in ipairs({"TungTungScreen","TungTung_KeyUI","TungTungLoading"}) do
+        pcall(function() local g=GC():FindFirstChild(n) if g then g:Destroy() end end)
+        pcall(function() local g=PlayerGui:FindFirstChild(n) if g then g:Destroy() end end)
+    end
+end
+
+local function StartWatchdog()
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            if os.time()>=EndTime then
+                TerminateAll()
+                local status=select(1,CheckTrialFromServer())
+                if status=="expired" then
+                    ShowKeyUI()
+                end
+                break
+            end
+        end
+    end)
+end
+
 local status,remaining=CheckTrialFromServer()
 if status=="expired" then
     ShowKeyUI()
@@ -834,9 +870,11 @@ elseif status=="premium" then
     EndTime=os.time()+remaining
     ShowTimeUI()
     ShowMainUI()
+    StartWatchdog()
 else
     currentMode="TRIAL"
     EndTime=os.time()+remaining
     ShowTimeUI()
     ShowMainUI()
+    StartWatchdog()
 end
