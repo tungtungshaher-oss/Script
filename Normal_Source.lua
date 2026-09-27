@@ -105,7 +105,7 @@ local function ShowVersionPicker()
         stroke.Color=color stroke.Thickness=2.5
     end
     V1Card, V1Stroke = MakeVersionCard(80, "V1", "Bản Cũ", "Script gốc, ổn định", Color3.fromRGB(124,92,255), function(card, stroke, color) ChosenVersion=1 Deselect(V2Card, V2Stroke) Select(card, stroke, color) end)
-    V2Card, V2Stroke = MakeVersionCard(152, "V2", "Bản Mới", "Hook + Script mới", Color3.fromRGB(245,158,11), function(card, stroke, color) ChosenVersion=2 Deselect(V1Card, V1Stroke) Select(card, stroke, color) end)
+    V2Card, V2Stroke = MakeVersionCard(152, "V2", "Script Mới", "Ổn định", Color3.fromRGB(245,158,11), function(card, stroke, color) ChosenVersion=2 Deselect(V1Card, V1Stroke) Select(card, stroke, color) end)
     ChosenVersion=1
     Select(V1Card, V1Stroke, Color3.fromRGB(124,92,255))
     local OKBtn=Instance.new("TextButton") OKBtn.Size=UDim2.new(1,-30,0,44) OKBtn.Position=UDim2.new(0,15,1,-58) OKBtn.BackgroundColor3=Color3.fromRGB(50,200,100) OKBtn.Text="XÁC NHẬN" OKBtn.TextColor3=Color3.fromRGB(255,255,255) OKBtn.TextSize=14 OKBtn.Font=Enum.Font.GothamBlack OKBtn.BorderSizePixel=0 OKBtn.ZIndex=3 OKBtn.Parent=Main
