@@ -8,6 +8,7 @@ local TweenService=game:GetService("TweenService")
 local RunService=game:GetService("RunService")
 local CoreGui=game:GetService("CoreGui")
 local Workspace=game:GetService("Workspace")
+local Lighting=game:GetService("Lighting")
 local LP=Players.LocalPlayer
 local PlayerGui=LP:WaitForChild("PlayerGui")
 
@@ -316,6 +317,7 @@ end
 getgenv().Tungtung_BypassEnabled=true
 getgenv().Tungtung_AntiHit=false
 getgenv().Tungtung_BypassProximity=false
+getgenv().Tungtung_AntiLag=false
 
 pcall(function()
     if hookfunction and getrawmetatable then
@@ -334,36 +336,7 @@ pcall(function()
 end)
 
 task.spawn(function()
-    while getgenv().Tungtung_BypassEnabled do
-        task.wait(0.1)
-        pcall(function()
-            local char=LP.Character
-            if char then
-                local hum=char:FindFirstChildOfClass("Humanoid")
-                if hum then hum:SetStateEnabled(Enum.HumanoidStateType.Teleporting,true) end
-            end
-        end)
-    end
-end)
-
-task.spawn(function()
-    while getgenv().Tungtung_BypassEnabled do
-        task.wait(0.5)
-        pcall(function()
-            local char=LP.Character
-            if char then
-                local hum=char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    if hum.WalkSpeed>20 then hum.WalkSpeed=16 end
-                    if hum.JumpPower>55 then hum.JumpPower=50 end
-                end
-            end
-        end)
-    end
-end)
-
-task.spawn(function()
-    task.wait(3)
+    task.wait(5)
     pcall(function()
         for _,obj in ipairs(game:GetDescendants()) do
             if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
@@ -379,6 +352,148 @@ task.spawn(function()
         end
     end)
 end)
+
+local AntiLagEnabled=false
+local antiLagConns={}
+local antiLagSaved={}
+local antiLagDebounce=false
+local antiLagAddedConn=nil
+
+local function saveProp(obj,prop)
+    if not antiLagSaved[obj] then antiLagSaved[obj]={} end
+    if antiLagSaved[obj][prop]==nil then
+        antiLagSaved[obj][prop]=obj[prop]
+    end
+end
+
+local function clearVisualEffects()
+    pcall(function()
+        for _,obj in ipairs(Lighting:GetChildren()) do
+            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
+            or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                saveProp(obj,"Enabled")
+                obj.Enabled=false
+            end
+        end
+    end)
+end
+
+local function restoreVisualEffects()
+    pcall(function()
+        for _,obj in ipairs(Lighting:GetChildren()) do
+            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
+            or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                local saved=antiLagSaved[obj]
+                if saved and saved.Enabled~=nil then
+                    obj.Enabled=saved.Enabled
+                end
+            end
+        end
+    end)
+end
+
+local function optimizeObject(obj)
+    pcall(function()
+        if obj:IsA("BasePart") then
+            if obj.Material~=Enum.Material.Plastic and obj.Material~=Enum.Material.SmoothPlastic then
+                saveProp(obj,"Material")
+                obj.Material=Enum.Material.SmoothPlastic
+            end
+            if obj.Reflectance>0 then
+                saveProp(obj,"Reflectance")
+                obj.Reflectance=0
+            end
+            if obj.CastShadow then
+                saveProp(obj,"CastShadow")
+                obj.CastShadow=false
+            end
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            if obj.Transparency<1 then
+                saveProp(obj,"Transparency")
+                obj.Transparency=1
+            end
+        elseif obj:IsA("Light") then
+            if obj.Enabled then
+                saveProp(obj,"Enabled")
+                obj.Enabled=false
+            end
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+        or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+            if obj.Enabled then
+                saveProp(obj,"Enabled")
+                obj.Enabled=false
+            end
+        end
+    end)
+end
+
+local function optimizeWorkspace()
+    if antiLagDebounce then return end
+    antiLagDebounce=true
+    task.spawn(function()
+        pcall(function()
+            saveProp(Workspace,"StreamingEnabled")
+            Workspace.StreamingEnabled=false
+        end)
+        local count=0
+        pcall(function()
+            for _,obj in ipairs(Workspace:GetDescendants()) do
+                count=count+1
+                optimizeObject(obj)
+                if count%500==0 then task.wait() end
+            end
+        end)
+        antiLagDebounce=false
+    end)
+end
+
+local function restoreWorkspace()
+    pcall(function()
+        for obj,props in pairs(antiLagSaved) do
+            if obj then
+                for prop,value in pairs(props) do
+                    pcall(function() obj[prop]=value end)
+                end
+            end
+        end
+    end)
+    table.clear(antiLagSaved)
+end
+
+local function antiLagStart()
+    clearVisualEffects()
+    optimizeWorkspace()
+    if not antiLagAddedConn then
+        antiLagAddedConn=Workspace.DescendantAdded:Connect(function(obj)
+            if not AntiLagEnabled then return end
+            task.wait(0.05)
+            if not AntiLagEnabled or not obj.Parent then return end
+            optimizeObject(obj)
+        end)
+    end
+    table.insert(antiLagConns,LP.CharacterAdded:Connect(function()
+        task.wait(1)
+        if AntiLagEnabled then
+            clearVisualEffects()
+        end
+    end))
+end
+
+local function antiLagStop()
+    for _,c in ipairs(antiLagConns) do
+        pcall(function() c:Disconnect() end)
+    end
+    table.clear(antiLagConns)
+    if antiLagAddedConn then
+        antiLagAddedConn:Disconnect()
+        antiLagAddedConn=nil
+    end
+    restoreVisualEffects()
+    restoreWorkspace()
+    pcall(function()
+        settings().Rendering.QualityLevel=Enum.QualityLevel.Automatic
+    end)
+end
 
 local AntiHitEnabled=false
 local IsAntiHitRunning=false
@@ -451,121 +566,212 @@ local function RestoreBypassProximity()
     table.clear(originalHold)
 end
 
-task.spawn(function()
-    while getgenv().Tungtung_BypassProximity do
-        task.wait(2)
-        if BypassProximityEnabled then ApplyBypassProximity() end
-    end
-end)
-
 Workspace.DescendantAdded:Connect(function(obj)
-    if BypassProximityEnabled and obj:IsA("ProximityPrompt") then
-        task.wait(0.1)
-        pcall(function()
-            if originalHold[obj]==nil then
-                originalHold[obj]=obj.HoldDuration
-            end
-            obj.HoldDuration=FAST_HOLD
-        end)
-    end
+    if not BypassProximityEnabled then return end
+    if not obj:IsA("ProximityPrompt") then return end
+    task.wait(0.1)
+    if not BypassProximityEnabled or not obj.Parent then return end
+    pcall(function()
+        if originalHold[obj]==nil then
+            originalHold[obj]=obj.HoldDuration
+        end
+        obj.HoldDuration=FAST_HOLD
+    end)
 end)
 
 local AntiRagdollEnabled=false
 local antiRagdollConns={}
-local antiRagdollHB=nil
+local antiRagdollHeartbeat=nil
+local antiRagdollCharConns={}
 
 local function arClearConns()
     for _,c in ipairs(antiRagdollConns) do
         pcall(function() c:Disconnect() end)
     end
     table.clear(antiRagdollConns)
+    for _,c in ipairs(antiRagdollCharConns) do
+        pcall(function() c:Disconnect() end)
+    end
+    table.clear(antiRagdollCharConns)
+    if antiRagdollHeartbeat then
+        antiRagdollHeartbeat:Disconnect()
+        antiRagdollHeartbeat=nil
+    end
 end
 
 local function arRestore(hum,char)
     if not hum or not hum.Parent then return end
-    if hum.PlatformStand then hum.PlatformStand=false end
-    if not hum.AutoRotate then hum.AutoRotate=true end
-    local state=hum:GetState()
-    if state==Enum.HumanoidStateType.Physics
-    or state==Enum.HumanoidStateType.FallingDown
-    or state==Enum.HumanoidStateType.Ragdoll then
-        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
-    end
-    if hum.Sit then hum.Sit=false end
     pcall(function()
+        if hum.PlatformStand then hum.PlatformStand=false end
+        if not hum.AutoRotate then hum.AutoRotate=true end
+        if hum.Sit then hum.Sit=false end
+        if hum.WalkSpeed==0 then hum.WalkSpeed=16 end
+        if hum.JumpPower==0 then hum.JumpPower=50 end
+        if hum.JumpHeight==0 then hum.JumpHeight=7.2 end
+        if hum.Health<=0 then return end
+        local state=hum:GetState()
+        if state==Enum.HumanoidStateType.Physics
+        or state==Enum.HumanoidStateType.FallingDown
+        or state==Enum.HumanoidStateType.Ragdoll
+        or state==Enum.HumanoidStateType.Dead then
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+            hum:ChangeState(Enum.HumanoidStateType.Running)
+        end
         hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
         hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
         hum:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Dead,false)
     end)
     if char then
-        for _,part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                if part.Anchored and part.Name~="HumanoidRootPart" then part.Anchored=false end
-                if not part.CanCollide and part.Name~="HumanoidRootPart" then part.CanCollide=true end
-            elseif part:IsA("Motor6D") then
-                if not part.Enabled then part.Enabled=true end
+        pcall(function()
+            for _,part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if part.Name=="Head" or part.Name=="Torso" or part.Name=="UpperTorso" or part.Name=="LowerTorso" or part.Name=="HumanoidRootPart" then
+                        if part.Anchored then part.Anchored=false end
+                        if part.CanCollide==false and part.Name~="HumanoidRootPart" then part.CanCollide=true end
+                    end
+                    for _,joint in ipairs(part:GetChildren()) do
+                        if joint:IsA("Motor6D") and joint.Enabled==false then
+                            joint.Enabled=true
+                        end
+                    end
+                elseif part:IsA("BallSocketConstraint") or part:IsA("HingeConstraint")
+                or part:IsA("NoCollisionConstraint") or part:IsA("RopeConstraint")
+                or part:IsA("RodConstraint") or part:IsA("SpringConstraint")
+                or part:IsA("UniversalConstraint") then
+                    if part.Enabled then part.Enabled=false end
+                end
             end
-        end
+        end)
     end
 end
 
 local function arSetup(hum,char)
     if not hum then return end
-    pcall(function()
-        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
-    end)
+    arRestore(hum,char)
     table.insert(antiRagdollConns,hum.StateChanged:Connect(function(_,newState)
         if not AntiRagdollEnabled then return end
         if newState==Enum.HumanoidStateType.Physics
         or newState==Enum.HumanoidStateType.FallingDown
         or newState==Enum.HumanoidStateType.Ragdoll then
-            task.spawn(function() arRestore(hum,char) end)
+            task.spawn(arRestore,hum,char)
         end
     end))
     table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("PlatformStand"):Connect(function()
         if not AntiRagdollEnabled then return end
-        if hum.PlatformStand then hum.PlatformStand=false end
+        if hum.PlatformStand then task.spawn(arRestore,hum,char) end
     end))
+    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("AutoRotate"):Connect(function()
+        if not AntiRagdollEnabled then return end
+        if not hum.AutoRotate then hum.AutoRotate=true end
+    end))
+    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("Sit"):Connect(function()
+        if not AntiRagdollEnabled then return end
+        if hum.Sit then hum.Sit=false end
+    end))
+    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if not AntiRagdollEnabled then return end
+        if hum.WalkSpeed<1 then hum.WalkSpeed=16 end
+    end))
+    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("JumpPower"):Connect(function()
+        if not AntiRagdollEnabled then return end
+        if hum.JumpPower<1 then hum.JumpPower=50 end
+    end))
+    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("JumpHeight"):Connect(function()
+        if not AntiRagdollEnabled then return end
+        if hum.JumpHeight<1 then hum.JumpHeight=7.2 end
+    end))
+    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("Health"):Connect(function()
+        if not AntiRagdollEnabled then return end
+        if hum.Health<=0 then task.spawn(arRestore,hum,char) end
+    end))
+    local root=char:FindFirstChild("HumanoidRootPart")
+    if root then
+        table.insert(antiRagdollConns,root:GetPropertyChangedSignal("Anchored"):Connect(function()
+            if not AntiRagdollEnabled then return end
+            if root.Anchored then root.Anchored=false end
+        end))
+    end
+    if char then
+        table.insert(antiRagdollCharConns,char.DescendantAdded:Connect(function(obj)
+            if not AntiRagdollEnabled then return end
+            if obj:IsA("BasePart") then
+                task.wait(0.05)
+                pcall(function()
+                    if obj.Name=="Head" or obj.Name=="Torso" or obj.Name=="UpperTorso" or obj.Name=="LowerTorso" then
+                        if obj.Anchored then obj.Anchored=false end
+                    end
+                end)
+            elseif obj:IsA("Motor6D") then
+                task.wait(0.05)
+                pcall(function()
+                    if obj.Enabled==false then obj.Enabled=true end
+                end)
+            elseif obj:IsA("BallSocketConstraint") or obj:IsA("HingeConstraint")
+            or obj:IsA("NoCollisionConstraint") or obj:IsA("RopeConstraint")
+            or obj:IsA("RodConstraint") or obj:IsA("SpringConstraint")
+            or obj:IsA("UniversalConstraint") then
+                task.wait(0.05)
+                pcall(function()
+                    if obj.Enabled then obj.Enabled=false end
+                end)
+            end
+        end))
+    end
 end
 
 local function arStart()
+    if not antiRagdollHeartbeat then
+        antiRagdollHeartbeat=RunService.Heartbeat:Connect(function()
+            if not AntiRagdollEnabled then return end
+            local char=LP.Character
+            if not char then return end
+            local hum=char:FindFirstChildOfClass("Humanoid")
+            if not hum then return end
+            local state=hum:GetState()
+            if hum.PlatformStand
+            or state==Enum.HumanoidStateType.Physics
+            or state==Enum.HumanoidStateType.FallingDown
+            or state==Enum.HumanoidStateType.Ragdoll then
+                arRestore(hum,char)
+            end
+            for _,part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if part.Name=="Head" or part.Name=="Torso" or part.Name=="UpperTorso" or part.Name=="LowerTorso" then
+                        if part.Anchored then part.Anchored=false end
+                    end
+                    for _,joint in ipairs(part:GetChildren()) do
+                        if joint:IsA("Motor6D") and joint.Enabled==false then
+                            joint.Enabled=true
+                        end
+                    end
+                elseif part:IsA("BallSocketConstraint") or part:IsA("HingeConstraint")
+                or part:IsA("NoCollisionConstraint") or part:IsA("RopeConstraint")
+                or part:IsA("RodConstraint") or part:IsA("SpringConstraint")
+                or part:IsA("UniversalConstraint") then
+                    if part.Enabled then part.Enabled=false end
+                end
+            end
+        end)
+    end
     local char=LP.Character
     if char then
         local hum=char:FindFirstChildOfClass("Humanoid")
-        arSetup(hum,char)
+        if hum then arSetup(hum,char) end
     end
     table.insert(antiRagdollConns,LP.CharacterAdded:Connect(function(newChar)
-        newChar:WaitForChild("Humanoid",5)
-        task.wait(0.3)
-        if AntiRagdollEnabled then
-            local hum=newChar:FindFirstChildOfClass("Humanoid")
+        task.wait(0.1)
+        if not AntiRagdollEnabled then return end
+        local hum=newChar:WaitForChild("Humanoid",5)
+        if hum then
             arSetup(hum,newChar)
             arRestore(hum,newChar)
         end
     end))
-    antiRagdollHB=RunService.Heartbeat:Connect(function()
-        if not AntiRagdollEnabled then return end
-        local c=LP.Character
-        if not c then return end
-        local h=c:FindFirstChildOfClass("Humanoid")
-        if not h then return end
-        if h.PlatformStand then h.PlatformStand=false end
-        local state=h:GetState()
-        if state==Enum.HumanoidStateType.Physics
-        or state==Enum.HumanoidStateType.FallingDown
-        or state==Enum.HumanoidStateType.Ragdoll then
-            arRestore(h,c)
-        end
-        local hrp=c:FindFirstChild("HumanoidRootPart")
-        if hrp and hrp.Anchored then hrp.Anchored=false end
-    end)
 end
 
 local function arStop()
     arClearConns()
-    if antiRagdollHB then antiRagdollHB:Disconnect() antiRagdollHB=nil end
     local char=LP.Character
     if char then
         local hum=char:FindFirstChildOfClass("Humanoid")
@@ -574,6 +780,7 @@ local function arStop()
                 hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,true)
                 hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,true)
                 hum:SetStateEnabled(Enum.HumanoidStateType.Physics,true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Dead,true)
             end)
         end
     end
@@ -581,6 +788,8 @@ end
 
 local TrapCleanerEnabled=false
 local trapCleanerConn=nil
+local TRAP_DROP_DISTANCE=100
+local movedTraps={}
 
 local function isPlayerTrap(obj)
     if not obj or not obj.Parent then return false end
@@ -591,21 +800,28 @@ local function isPlayerTrap(obj)
     return false
 end
 
-local function trapDestroy(obj)
-    if isPlayerTrap(obj) then
-        pcall(function()
-            local hb=obj:FindFirstChild("Hitbox")
-            if hb then hb:Destroy() end
-            obj:Destroy()
-        end)
-    end
+local function trapMove(obj)
+    if not isPlayerTrap(obj) then return end
+    if movedTraps[obj] then return end
+    pcall(function()
+        movedTraps[obj]=true
+        obj.CanTouch=false
+        obj.CanCollide=false
+        obj.CFrame=obj.CFrame-Vector3.new(0,TRAP_DROP_DISTANCE,0)
+        local hb=obj:FindFirstChild("Hitbox")
+        if hb and hb:IsA("BasePart") then
+            hb.CanTouch=false
+            hb.CanCollide=false
+            hb.CFrame=hb.CFrame-Vector3.new(0,TRAP_DROP_DISTANCE,0)
+        end
+    end)
 end
 
 local function trapScan()
     local transient=Workspace:FindFirstChild("Transient")
     if not transient then return end
     for _,obj in ipairs(transient:GetChildren()) do
-        trapDestroy(obj)
+        trapMove(obj)
     end
 end
 
@@ -613,16 +829,10 @@ local function trapStart()
     trapScan()
     trapCleanerConn=Workspace.DescendantAdded:Connect(function(obj)
         if not TrapCleanerEnabled then return end
-        if obj.Name=="PlayerTrap" then
-            task.wait(0.01)
-            trapDestroy(obj)
-        end
-    end)
-    task.spawn(function()
-        while TrapCleanerEnabled do
-            task.wait(0.5)
-            trapScan()
-        end
+        if obj.Name~="PlayerTrap" then return end
+        if not obj:IsA("BasePart") then return end
+        task.wait(0.05)
+        trapMove(obj)
     end)
 end
 
@@ -631,6 +841,7 @@ local function trapStop()
         trapCleanerConn:Disconnect()
         trapCleanerConn=nil
     end
+    table.clear(movedTraps)
 end
 
 local function ShowMainUI()
@@ -658,7 +869,7 @@ local function ShowMainUI()
     fS.Color=Color3.fromRGB(150,80,255)
 
     local panel=Instance.new("Frame")
-    panel.Size=UDim2.fromOffset(300,260)
+    panel.Size=UDim2.fromOffset(300,310)
     panel.Position=UDim2.new(1,-315,0,15)
     panel.BackgroundColor3=Color3.fromRGB(12,12,16)
     panel.BorderSizePixel=0
@@ -859,6 +1070,24 @@ local function ShowMainUI()
             })
         end)
         return TrapCleanerEnabled
+    end)
+
+    makeRow(192,"Anti Lag",function() return AntiLagEnabled end,function()
+        AntiLagEnabled=not AntiLagEnabled
+        getgenv().Tungtung_AntiLag=AntiLagEnabled
+        if AntiLagEnabled then
+            antiLagStart()
+        else
+            antiLagStop()
+        end
+        pcall(function()
+            StarterGui:SetCore("SendNotification",{
+                Title=NOTIF_NAME,
+                Text=AntiLagEnabled and "Anti-Lag ON" or "Anti-Lag OFF",
+                Duration=2,
+            })
+        end)
+        return AntiLagEnabled
     end)
 
     local dragging,dragStart,startPos
