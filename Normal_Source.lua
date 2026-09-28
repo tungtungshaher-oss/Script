@@ -29,7 +29,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v4.4"
+local BRAND_NAME="Tungtung v4.5"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
@@ -235,7 +235,7 @@ FlashLabel.AnchorPoint=Vector2.new(0.5,0.5)
 FlashLabel.Position=UDim2.new(0.5,0,0.5,0)
 FlashLabel.Size=UDim2.new(0,400,0,50)
 FlashLabel.BackgroundTransparency=1
-FlashLabel.Text="TUNGTUNG v4.4 LOADING..."
+FlashLabel.Text="TUNGTUNG v4.5 LOADING..."
 FlashLabel.TextColor3=Color3.fromRGB(255,255,255)
 FlashLabel.TextSize=22
 FlashLabel.Font=Enum.Font.GothamBlack
@@ -417,6 +417,7 @@ end)
 local AntiHitEnabled=false
 local IsAntiHitRunning=false
 local ANTI_HIT_SPEED=0.005
+local RETURN_DELAY=0.01
 
 local TeleportPoints={
     Vector3.new(500.62,241.28,-366.64),
@@ -434,6 +435,9 @@ local function TeleportRoute(character)
     if not character then return end
     local root=character:FindFirstChild("HumanoidRootPart")
     if not root then return end
+    
+    local originalCFrame=root.CFrame
+    
     IsAntiHitRunning=true
     for _,position in ipairs(TeleportPoints) do
         if not AntiHitEnabled or not root.Parent then
@@ -443,6 +447,12 @@ local function TeleportRoute(character)
         root.CFrame=CFrame.new(position)
         task.wait(ANTI_HIT_SPEED)
     end
+    
+    task.wait(RETURN_DELAY)
+    if AntiHitEnabled and root.Parent then
+        root.CFrame=originalCFrame
+    end
+    
     IsAntiHitRunning=false
 end
 
