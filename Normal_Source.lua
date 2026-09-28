@@ -1,9 +1,13 @@
+if not game:IsLoaded() then game.Loaded:Wait() end
+
 local Players=game:GetService("Players")
 local StarterGui=game:GetService("StarterGui")
 local UserInputService=game:GetService("UserInputService")
 local ProximityPromptService=game:GetService("ProximityPromptService")
 local TweenService=game:GetService("TweenService")
+local RunService=game:GetService("RunService")
 local CoreGui=game:GetService("CoreGui")
+local Workspace=game:GetService("Workspace")
 local LP=Players.LocalPlayer
 local PlayerGui=LP:WaitForChild("PlayerGui")
 
@@ -14,7 +18,7 @@ local function GC()
     return CoreGui or PlayerGui
 end
 
-for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_Ended","TungTungLoading"}) do
+for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_Ended","TungTungLoading","TungTung_TeleFlash"}) do
     pcall(function() if PlayerGui:FindFirstChild(n) then PlayerGui[n]:Destroy() end end)
     pcall(function() if CoreGui:FindFirstChild(n) then CoreGui[n]:Destroy() end end)
 end
@@ -26,7 +30,7 @@ local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
 local STEAL_HOLD=cfg.STEAL_HOLD
-local BRAND_NAME="Tungtung"
+local BRAND_NAME="Tungtung v4"
 
 local LoadingGui=Instance.new("ScreenGui")
 LoadingGui.Name="TungTungLoading"
@@ -103,8 +107,111 @@ TweenService:Create(bar,TweenInfo.new(3,Enum.EasingStyle.Linear),{Size=UDim2.new
 task.wait(3)
 LoadingGui:Destroy()
 
+local FlashGui=Instance.new("ScreenGui")
+FlashGui.Name="TungTung_TeleFlash"
+FlashGui.ResetOnSpawn=false
+FlashGui.IgnoreGuiInset=true
+FlashGui.DisplayOrder=2147483647
+FlashGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+pcall(function() FlashGui.Parent=GC() end)
+if not FlashGui.Parent then FlashGui.Parent=PlayerGui end
+
+local FlashFrame=Instance.new("Frame")
+FlashFrame.Size=UDim2.new(1,0,1,0)
+FlashFrame.Position=UDim2.new(0,0,0,0)
+FlashFrame.BackgroundColor3=Color3.fromRGB(0,0,0)
+FlashFrame.BackgroundTransparency=0
+FlashFrame.BorderSizePixel=0
+FlashFrame.ZIndex=1
+FlashFrame.Visible=false
+FlashFrame.Parent=FlashGui
+
+local FlashLabel=Instance.new("TextLabel")
+FlashLabel.AnchorPoint=Vector2.new(0.5,0.5)
+FlashLabel.Position=UDim2.new(0.5,0,0.5,0)
+FlashLabel.Size=UDim2.new(0,400,0,50)
+FlashLabel.BackgroundTransparency=1
+FlashLabel.Text="TUNGTUNG v4 LOADING..."
+FlashLabel.TextColor3=Color3.fromRGB(255,255,255)
+FlashLabel.TextSize=22
+FlashLabel.Font=Enum.Font.GothamBlack
+FlashLabel.TextStrokeTransparency=0.2
+FlashLabel.TextStrokeColor3=Color3.fromRGB(0,0,0)
+FlashLabel.ZIndex=2
+FlashLabel.Visible=false
+FlashLabel.Parent=FlashGui
+
+local FlashPercent=Instance.new("TextLabel")
+FlashPercent.AnchorPoint=Vector2.new(0.5,0.5)
+FlashPercent.Position=UDim2.new(0.5,0,0.5,40)
+FlashPercent.Size=UDim2.new(0,400,0,30)
+FlashPercent.BackgroundTransparency=1
+FlashPercent.Text="0%"
+FlashPercent.TextColor3=Color3.fromRGB(130,80,255)
+FlashPercent.TextSize=20
+FlashPercent.Font=Enum.Font.Code
+FlashPercent.TextStrokeTransparency=0.2
+FlashPercent.TextStrokeColor3=Color3.fromRGB(0,0,0)
+FlashPercent.ZIndex=2
+FlashPercent.Visible=false
+FlashPercent.Parent=FlashGui
+
+local FlashBarBg=Instance.new("Frame")
+FlashBarBg.AnchorPoint=Vector2.new(0.5,0.5)
+FlashBarBg.Position=UDim2.new(0.5,0,0.5,80)
+FlashBarBg.Size=UDim2.new(0,340,0,8)
+FlashBarBg.BackgroundColor3=Color3.fromRGB(40,30,55)
+FlashBarBg.BorderSizePixel=0
+FlashBarBg.ZIndex=2
+FlashBarBg.Visible=false
+FlashBarBg.Parent=FlashGui
+Instance.new("UICorner",FlashBarBg).CornerRadius=UDim.new(1,0)
+
+local FlashBarFill=Instance.new("Frame")
+FlashBarFill.Size=UDim2.new(0,0,1,0)
+FlashBarFill.BackgroundColor3=Color3.fromRGB(130,80,255)
+FlashBarFill.BorderSizePixel=0
+FlashBarFill.ZIndex=3
+FlashBarFill.Parent=FlashBarBg
+Instance.new("UICorner",FlashBarFill).CornerRadius=UDim.new(1,0)
+
+local flashToken=0
+local function DoTeleFlash()
+    flashToken+=1
+    local myToken=flashToken
+    FlashFrame.Visible=true
+    FlashFrame.BackgroundTransparency=0
+    FlashLabel.Visible=true
+    FlashPercent.Visible=true
+    FlashBarBg.Visible=true
+    FlashBarFill.Size=UDim2.new(0,0,1,0)
+    FlashPercent.Text="0%"
+    local startTick=tick()
+    task.spawn(function()
+        while flashToken==myToken and (tick()-startTick)<0.6 do
+            local pct=math.clamp((tick()-startTick)/0.6,0,1)
+            FlashPercent.Text=math.floor(pct*100).."%"
+            FlashBarFill.Size=UDim2.new(pct,0,1,0)
+            RunService.Heartbeat:Wait()
+        end
+        if flashToken==myToken then
+            FlashPercent.Text="100%"
+            FlashBarFill.Size=UDim2.new(1,0,1,0)
+        end
+    end)
+    task.delay(0.6,function()
+        if flashToken==myToken then
+            FlashFrame.Visible=false
+            FlashLabel.Visible=false
+            FlashPercent.Visible=false
+            FlashBarBg.Visible=false
+        end
+    end)
+end
+
 getgenv().Tungtung_BypassEnabled=true
 getgenv().Tungtung_AntiHit=false
+getgenv().Tungtung_BypassProximity=false
 
 pcall(function()
     if hookfunction and getrawmetatable then
@@ -195,8 +302,13 @@ local function TeleportRoute(character)
             IsAntiHitRunning=false
             return
         end
-        root.CFrame=CFrame.new(position)
+        local target=CFrame.new(position)
+        root.CFrame=target
         task.wait(ANTI_HIT_SPEED)
+        if (root.Position-position).Magnitude>5 then
+            root.CFrame=target
+            task.wait(ANTI_HIT_SPEED)
+        end
     end
     IsAntiHitRunning=false
 end
@@ -206,7 +318,57 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     if not AntiHitEnabled or IsAntiHitRunning then return end
     local character=LP.Character
     if not character then return end
-    task.spawn(function() TeleportRoute(character) end)
+    DoTeleFlash()
+    task.spawn(function()
+        TeleportRoute(character)
+    end)
+end)
+
+local BypassProximityEnabled=false
+local FAST_HOLD=0.05
+local originalHold={}
+
+local function ApplyBypassProximity()
+    for _,obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            if originalHold[obj]==nil then
+                originalHold[obj]=obj.HoldDuration
+            end
+            pcall(function()
+                obj.HoldDuration=FAST_HOLD
+            end)
+        end
+    end
+end
+
+local function RestoreBypassProximity()
+    for obj,hold in pairs(originalHold) do
+        if obj and obj.Parent then
+            pcall(function()
+                obj.HoldDuration=hold
+            end)
+        end
+    end
+    table.clear(originalHold)
+end
+
+task.spawn(function()
+    while getgenv().Tungtung_BypassProximity do
+        task.wait(2)
+        if BypassProximityEnabled then ApplyBypassProximity() end
+    end
+end)
+
+Workspace.DescendantAdded:Connect(function(obj)
+    if BypassProximityEnabled and obj:IsA("ProximityPrompt") then
+        task.wait(0.1)
+        pcall(function()
+            if originalHold[obj]==nil then
+                originalHold[obj]=obj.HoldDuration
+            end
+            obj.HoldDuration=FAST_HOLD
+        end)
+    end
 end)
 
 local function ShowMainUI()
@@ -234,7 +396,7 @@ local function ShowMainUI()
     fS.Color=Color3.fromRGB(150,80,255)
 
     local panel=Instance.new("Frame")
-    panel.Size=UDim2.fromOffset(300,110)
+    panel.Size=UDim2.fromOffset(300,160)
     panel.Position=UDim2.new(1,-315,0,15)
     panel.BackgroundColor3=Color3.fromRGB(12,12,16)
     panel.BorderSizePixel=0
@@ -302,72 +464,100 @@ local function ShowMainUI()
     content.ZIndex=5001
     content.Parent=panel
 
-    local row=Instance.new("Frame")
-    row.Size=UDim2.new(1,0,0,46)
-    row.Position=UDim2.new(0,0,0,0)
-    row.BackgroundColor3=Color3.fromRGB(18,18,24)
-    row.BorderSizePixel=0
-    row.ZIndex=5002
-    row.Parent=content
-    Instance.new("UICorner",row).CornerRadius=UDim.new(0,10)
-    local rG=Instance.new("UIGradient",row)
-    rG.Color=ColorSequence.new{
-        ColorSequenceKeypoint.new(0,Color3.fromRGB(25,20,40)),
-        ColorSequenceKeypoint.new(1,Color3.fromRGB(15,12,25))
-    }
-    local rS=Instance.new("UIStroke",row)
-    rS.Thickness=1
-    rS.Color=Color3.fromRGB(60,40,100)
-    local lbl=Instance.new("TextLabel")
-    lbl.Size=UDim2.new(1,-80,1,0)
-    lbl.Position=UDim2.new(0,14,0,0)
-    lbl.BackgroundTransparency=1
-    lbl.Text="Super Anti Hit ⚡"
-    lbl.TextColor3=Color3.fromRGB(240,240,255)
-    lbl.Font=Enum.Font.GothamBold
-    lbl.TextSize=12
-    lbl.TextXAlignment=Enum.TextXAlignment.Left
-    lbl.ZIndex=5003
-    lbl.Parent=row
-    local track=Instance.new("Frame")
-    track.Size=UDim2.fromOffset(48,24)
-    track.Position=UDim2.new(1,-60,0.5,-12)
-    track.BackgroundColor3=Color3.fromRGB(45,45,60)
-    track.ZIndex=5003
-    track.Parent=row
-    Instance.new("UICorner",track).CornerRadius=UDim.new(1,0)
-    local knob=Instance.new("Frame")
-    knob.Size=UDim2.fromOffset(18,18)
-    knob.Position=UDim2.new(0,3,0.5,-9)
-    knob.BackgroundColor3=Color3.fromRGB(200,200,220)
-    knob.ZIndex=5004
-    knob.Parent=track
-    Instance.new("UICorner",knob).CornerRadius=UDim.new(1,0)
-    local clickBtn=Instance.new("TextButton")
-    clickBtn.Size=UDim2.new(1,0,1,0)
-    clickBtn.BackgroundTransparency=1
-    clickBtn.Text=""
-    clickBtn.ZIndex=5005
-    clickBtn.Parent=row
-    local isOn=false
-    clickBtn.MouseButton1Click:Connect(function()
-        isOn=not isOn
-        AntiHitEnabled=isOn
-        getgenv().Tungtung_AntiHit=isOn
-        if isOn then
-            TweenService:Create(track,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(130,80,255)}):Play()
-            TweenService:Create(knob,TweenInfo.new(.2),{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play()
+    local function makeRow(y,labelText,getState,onToggle)
+        local row=Instance.new("Frame")
+        row.Size=UDim2.new(1,0,0,46)
+        row.Position=UDim2.new(0,0,0,y)
+        row.BackgroundColor3=Color3.fromRGB(18,18,24)
+        row.BorderSizePixel=0
+        row.ZIndex=5002
+        row.Parent=content
+        Instance.new("UICorner",row).CornerRadius=UDim.new(0,10)
+        local rG=Instance.new("UIGradient",row)
+        rG.Color=ColorSequence.new{
+            ColorSequenceKeypoint.new(0,Color3.fromRGB(25,20,40)),
+            ColorSequenceKeypoint.new(1,Color3.fromRGB(15,12,25))
+        }
+        local rS=Instance.new("UIStroke",row)
+        rS.Thickness=1
+        rS.Color=Color3.fromRGB(60,40,100)
+
+        local lbl=Instance.new("TextLabel")
+        lbl.Size=UDim2.new(1,-80,1,0)
+        lbl.Position=UDim2.new(0,14,0,0)
+        lbl.BackgroundTransparency=1
+        lbl.Text=labelText
+        lbl.TextColor3=Color3.fromRGB(240,240,255)
+        lbl.Font=Enum.Font.GothamBold
+        lbl.TextSize=12
+        lbl.TextXAlignment=Enum.TextXAlignment.Left
+        lbl.ZIndex=5003
+        lbl.Parent=row
+
+        local track=Instance.new("Frame")
+        track.Size=UDim2.fromOffset(48,24)
+        track.Position=UDim2.new(1,-60,0.5,-12)
+        track.BackgroundColor3=getState() and Color3.fromRGB(130,80,255) or Color3.fromRGB(45,45,60)
+        track.ZIndex=5003
+        track.Parent=row
+        Instance.new("UICorner",track).CornerRadius=UDim.new(1,0)
+
+        local knob=Instance.new("Frame")
+        knob.Size=UDim2.fromOffset(18,18)
+        knob.Position=getState() and UDim2.new(1,-21,0.5,-9) or UDim2.new(0,3,0.5,-9)
+        knob.BackgroundColor3=getState() and Color3.fromRGB(255,255,255) or Color3.fromRGB(200,200,220)
+        knob.ZIndex=5004
+        knob.Parent=track
+        Instance.new("UICorner",knob).CornerRadius=UDim.new(1,0)
+
+        local clickBtn=Instance.new("TextButton")
+        clickBtn.Size=UDim2.new(1,0,1,0)
+        clickBtn.BackgroundTransparency=1
+        clickBtn.Text=""
+        clickBtn.ZIndex=5005
+        clickBtn.Parent=row
+
+        clickBtn.MouseButton1Click:Connect(function()
+            local isOn=onToggle()
+            if isOn then
+                TweenService:Create(track,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(130,80,255)}):Play()
+                TweenService:Create(knob,TweenInfo.new(.2),{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play()
+            else
+                TweenService:Create(track,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()
+                TweenService:Create(knob,TweenInfo.new(.2),{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(200,200,220)}):Play()
+            end
+        end)
+    end
+
+    makeRow(0,"Super Anti Hit ⚡",function() return AntiHitEnabled end,function()
+        AntiHitEnabled=not AntiHitEnabled
+        getgenv().Tungtung_AntiHit=AntiHitEnabled
+        pcall(function()
+            StarterGui:SetCore("SendNotification",{
+                Title=BRAND_NAME,
+                Text=AntiHitEnabled and "Anti-Hit ON" or "Anti-Hit OFF",
+                Duration=2,
+            })
+        end)
+        return AntiHitEnabled
+    end)
+
+    makeRow(50,"Bypass Proximity ⚡",function() return BypassProximityEnabled end,function()
+        BypassProximityEnabled=not BypassProximityEnabled
+        getgenv().Tungtung_BypassProximity=BypassProximityEnabled
+        if BypassProximityEnabled then
+            ApplyBypassProximity()
         else
-            TweenService:Create(track,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()
-            TweenService:Create(knob,TweenInfo.new(.2),{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(200,200,220)}):Play()
+            RestoreBypassProximity()
         end
         pcall(function()
             StarterGui:SetCore("SendNotification",{
                 Title=BRAND_NAME,
-                Text=isOn and "Anti-Hit ON" or "Anti-Hit OFF",
+                Text=BypassProximityEnabled and "Bypass Proximity ON" or "Bypass Proximity OFF",
                 Duration=2,
             })
         end)
+        return BypassProximityEnabled
     end)
 
     local dragging,dragStart,startPos
