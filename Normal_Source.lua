@@ -18,7 +18,7 @@ local function GC()
     return CoreGui or PlayerGui
 end
 
-for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_Ended","TungTungLoading","TungTung_TeleFlash"}) do
+for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_Ended","TungTungLoading","TungTung_TeleFlash","TungTungIntro"}) do
     pcall(function() if PlayerGui:FindFirstChild(n) then PlayerGui[n]:Destroy() end end)
     pcall(function() if CoreGui:FindFirstChild(n) then CoreGui[n]:Destroy() end end)
 end
@@ -32,80 +32,184 @@ local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
 local BRAND_NAME="Tungtung v4.3"
 local NOTIF_NAME="Tungtung Hub"
 
-local LoadingGui=Instance.new("ScreenGui")
-LoadingGui.Name="TungTungLoading"
-LoadingGui.ResetOnSpawn=false
-LoadingGui.IgnoreGuiInset=true
-LoadingGui.DisplayOrder=2147483647
-pcall(function() LoadingGui.Parent=GC() end)
-if not LoadingGui.Parent then LoadingGui.Parent=PlayerGui end
+local MainGui=Instance.new("ScreenGui")
+MainGui.Name="TungTungIntro"
+MainGui.ResetOnSpawn=false
+MainGui.IgnoreGuiInset=true
+MainGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+MainGui.DisplayOrder=2147483647
+pcall(function() MainGui.Parent=GC() end)
+if not MainGui.Parent then MainGui.Parent=PlayerGui end
 
-local bg=Instance.new("Frame")
-bg.Size=UDim2.new(1,0,1,0)
-bg.BackgroundColor3=Color3.fromRGB(0,0,0)
-bg.BorderSizePixel=0
-bg.Parent=LoadingGui
+local DarkOverlay=Instance.new("Frame")
+DarkOverlay.Size=UDim2.fromScale(1,1)
+DarkOverlay.BackgroundColor3=Color3.fromRGB(0,0,0)
+DarkOverlay.BackgroundTransparency=1
+DarkOverlay.BorderSizePixel=0
+DarkOverlay.ZIndex=99
+DarkOverlay.Parent=MainGui
 
-local center=Instance.new("Frame")
-center.Size=UDim2.new(0,320,0,120)
-center.Position=UDim2.new(.5,-160,.5,-60)
-center.BackgroundColor3=Color3.fromRGB(12,12,16)
-center.BorderSizePixel=0
-center.Parent=LoadingGui
-Instance.new("UICorner",center).CornerRadius=UDim.new(0,12)
+local Card=Instance.new("Frame")
+Card.AnchorPoint=Vector2.new(0.5,0.5)
+Card.Position=UDim2.fromScale(0.5,0.54)
+Card.Size=UDim2.fromOffset(360,220)
+Card.BackgroundColor3=Color3.fromRGB(14,14,16)
+Card.BackgroundTransparency=1
+Card.ClipsDescendants=true
+Card.ZIndex=100
+Card.Parent=MainGui
 
-local st=Instance.new("UIStroke",center)
-st.Thickness=1.5
-st.Color=Color3.fromRGB(130,60,255)
+local LoadingBgGradient=Instance.new("UIGradient")
+LoadingBgGradient.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0.00,Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.28,Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.40,Color3.fromRGB(70,70,70)),
+    ColorSequenceKeypoint.new(0.46,Color3.fromRGB(255,255,255)),
+    ColorSequenceKeypoint.new(0.54,Color3.fromRGB(255,255,255)),
+    ColorSequenceKeypoint.new(0.60,Color3.fromRGB(70,70,70)),
+    ColorSequenceKeypoint.new(0.72,Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(1.00,Color3.fromRGB(0,0,0))
+})
+LoadingBgGradient.Rotation=0
+LoadingBgGradient.Offset=Vector2.new(1.35,0)
+LoadingBgGradient.Parent=Card
 
-local lg=Instance.new("ImageLabel")
-lg.Size=UDim2.fromOffset(40,40)
-lg.Position=UDim2.new(0,15,0,15)
-lg.BackgroundTransparency=1
-lg.ScaleType=Enum.ScaleType.Fit
-lg.Image=LOGO_ASSET
-lg.Parent=center
+task.spawn(function()
+    while MainGui.Parent and Card.Parent do
+        LoadingBgGradient.Offset=Vector2.new(1.35,0)
+        local sweep=TweenService:Create(LoadingBgGradient,TweenInfo.new(2.8,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut),{Offset=Vector2.new(-1.35,0)})
+        sweep:Play()
+        sweep.Completed:Wait()
+        LoadingBgGradient.Offset=Vector2.new(1.35,0)
+        task.wait(0.18)
+    end
+end)
 
-local lt=Instance.new("TextLabel")
-lt.Size=UDim2.new(1,-70,0,22)
-lt.Position=UDim2.new(0,62,0,15)
-lt.BackgroundTransparency=1
-lt.Text="ĐANG TẢI SCRIPT"
-lt.TextColor3=Color3.fromRGB(240,220,255)
-lt.Font=Enum.Font.GothamBlack
-lt.TextSize=15
-lt.TextXAlignment=Enum.TextXAlignment.Left
-lt.Parent=center
+Instance.new("UICorner",Card).CornerRadius=UDim.new(0,14)
 
-local ls=Instance.new("TextLabel")
-ls.Size=UDim2.new(1,-30,0,16)
-ls.Position=UDim2.new(0,15,0,45)
-ls.BackgroundTransparency=1
-ls.Text="Hoàn thành trong 3s..."
-ls.TextColor3=Color3.fromRGB(180,150,220)
-ls.Font=Enum.Font.Gotham
-ls.TextSize=11
-ls.TextXAlignment=Enum.TextXAlignment.Left
-ls.Parent=center
+local CardStroke=Instance.new("UIStroke")
+CardStroke.Color=Color3.fromRGB(255,255,255)
+CardStroke.Transparency=1
+CardStroke.Thickness=1.2
+CardStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+CardStroke.Parent=Card
 
-local barBg=Instance.new("Frame")
-barBg.Size=UDim2.new(1,-30,0,6)
-barBg.Position=UDim2.new(0,15,1,-25)
-barBg.BackgroundColor3=Color3.fromRGB(30,20,40)
-barBg.BorderSizePixel=0
-barBg.Parent=center
-Instance.new("UICorner",barBg).CornerRadius=UDim.new(1,0)
+local Logo=Instance.new("ImageLabel")
+Logo.AnchorPoint=Vector2.new(0.5,0)
+Logo.Position=UDim2.new(0.5,0,0.12,0)
+Logo.Size=UDim2.fromOffset(56,56)
+Logo.BackgroundTransparency=1
+Logo.Image=LOGO_ASSET
+Logo.ImageTransparency=1
+Logo.ScaleType=Enum.ScaleType.Fit
+Logo.ZIndex=101
+Logo.Parent=Card
+Instance.new("UICorner",Logo).CornerRadius=UDim.new(0,10)
 
-local bar=Instance.new("Frame")
-bar.Size=UDim2.new(0,0,1,0)
-bar.BackgroundColor3=Color3.fromRGB(130,80,255)
-bar.BorderSizePixel=0
-bar.Parent=barBg
-Instance.new("UICorner",bar).CornerRadius=UDim.new(1,0)
+local Title=Instance.new("TextLabel")
+Title.AnchorPoint=Vector2.new(0.5,0)
+Title.Position=UDim2.new(0.5,0,0.43,0)
+Title.Size=UDim2.new(0.9,0,0,24)
+Title.BackgroundTransparency=1
+Title.Text="TUNGTUNG"
+Title.TextColor3=Color3.fromRGB(255,255,255)
+Title.TextTransparency=1
+Title.Font=Enum.Font.FredokaOne
+Title.TextSize=20
+Title.ZIndex=101
+Title.Parent=Card
 
-TweenService:Create(bar,TweenInfo.new(3,Enum.EasingStyle.Linear),{Size=UDim2.new(1,0,1,0)}):Play()
-task.wait(3)
-LoadingGui:Destroy()
+local DiscordText=Instance.new("TextLabel")
+DiscordText.AnchorPoint=Vector2.new(0.5,0)
+DiscordText.Position=UDim2.new(0.5,0,0.56,0)
+DiscordText.Size=UDim2.new(0.9,0,0,18)
+DiscordText.BackgroundTransparency=1
+DiscordText.Text=BRAND_NAME.." • "..SOCIAL_HANDLE
+DiscordText.TextColor3=Color3.fromRGB(160,160,165)
+DiscordText.TextTransparency=1
+DiscordText.Font=Enum.Font.FredokaOne
+DiscordText.TextSize=12
+DiscordText.ZIndex=101
+DiscordText.Parent=Card
+
+local ProgressBg=Instance.new("Frame")
+ProgressBg.AnchorPoint=Vector2.new(0.5,0)
+ProgressBg.Position=UDim2.new(0.5,0,0.76,0)
+ProgressBg.Size=UDim2.new(0.78,0,0,5)
+ProgressBg.BackgroundColor3=Color3.fromRGB(30,30,35)
+ProgressBg.BackgroundTransparency=1
+ProgressBg.BorderSizePixel=0
+ProgressBg.ZIndex=101
+ProgressBg.Parent=Card
+Instance.new("UICorner",ProgressBg).CornerRadius=UDim.new(1,0)
+
+local ProgressFill=Instance.new("Frame")
+ProgressFill.Position=UDim2.new(0,0,0,0)
+ProgressFill.Size=UDim2.new(0,0,1,0)
+ProgressFill.BackgroundColor3=Color3.fromRGB(255,255,255)
+ProgressFill.BackgroundTransparency=1
+ProgressFill.BorderSizePixel=0
+ProgressFill.ZIndex=102
+ProgressFill.Parent=ProgressBg
+Instance.new("UICorner",ProgressFill).CornerRadius=UDim.new(1,0)
+
+local Status=Instance.new("TextLabel")
+Status.AnchorPoint=Vector2.new(0.5,0)
+Status.Position=UDim2.new(0.5,0,0.84,0)
+Status.Size=UDim2.new(0.8,0,0,14)
+Status.BackgroundTransparency=1
+Status.Text="Initializing Tungtung Hub..."
+Status.TextColor3=Color3.fromRGB(120,120,125)
+Status.TextTransparency=1
+Status.Font=Enum.Font.Gotham
+Status.TextSize=11
+Status.ZIndex=101
+Status.Parent=Card
+
+local tweenFast=TweenInfo.new(0.35,Enum.EasingStyle.Quart,Enum.EasingDirection.Out)
+local tweenPop=TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out)
+
+TweenService:Create(DarkOverlay,tweenFast,{BackgroundTransparency=0.45}):Play()
+task.wait(0.05)
+
+TweenService:Create(Card,tweenPop,{Position=UDim2.fromScale(0.5,0.5),BackgroundTransparency=0.05}):Play()
+TweenService:Create(CardStroke,tweenFast,{Transparency=0.88}):Play()
+task.wait(0.15)
+
+TweenService:Create(Logo,tweenFast,{ImageTransparency=0}):Play()
+TweenService:Create(Title,tweenFast,{TextTransparency=0}):Play()
+TweenService:Create(DiscordText,tweenFast,{TextTransparency=0}):Play()
+TweenService:Create(ProgressBg,tweenFast,{BackgroundTransparency=0}):Play()
+TweenService:Create(ProgressFill,tweenFast,{BackgroundTransparency=0}):Play()
+TweenService:Create(Status,tweenFast,{TextTransparency=0}):Play()
+
+task.wait(0.25)
+
+Status.Text="Loading scripts & assets..."
+TweenService:Create(ProgressFill,TweenInfo.new(1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Size=UDim2.new(1,0,1,0)}):Play()
+
+task.wait(1.1)
+
+Status.Text="TUNGTUNG"
+Status.TextColor3=Color3.fromRGB(255,255,255)
+
+task.wait(0.7)
+
+local tweenOut=TweenInfo.new(0.4,Enum.EasingStyle.Quart,Enum.EasingDirection.In)
+
+TweenService:Create(Card,tweenOut,{Position=UDim2.fromScale(0.5,0.46),BackgroundTransparency=1}):Play()
+TweenService:Create(CardStroke,tweenOut,{Transparency=1}):Play()
+TweenService:Create(DarkOverlay,tweenOut,{BackgroundTransparency=1}):Play()
+TweenService:Create(Logo,tweenOut,{ImageTransparency=1}):Play()
+TweenService:Create(Title,tweenOut,{TextTransparency=1}):Play()
+TweenService:Create(DiscordText,tweenOut,{TextTransparency=1}):Play()
+TweenService:Create(ProgressBg,tweenOut,{BackgroundTransparency=1}):Play()
+TweenService:Create(ProgressFill,tweenOut,{BackgroundTransparency=1}):Play()
+TweenService:Create(Status,tweenOut,{TextTransparency=1}):Play()
+
+task.wait(0.45)
+
+MainGui:Destroy()
 
 local FlashGui=Instance.new("ScreenGui")
 FlashGui.Name="TungTung_TeleFlash"
@@ -336,13 +440,8 @@ local function TeleportRoute(character)
             IsAntiHitRunning=false
             return
         end
-        local target=CFrame.new(position)
-        root.CFrame=target
+        root.CFrame=CFrame.new(position)
         task.wait(ANTI_HIT_SPEED)
-        if (root.Position-position).Magnitude>5 then
-            root.CFrame=target
-            task.wait(ANTI_HIT_SPEED)
-        end
     end
     IsAntiHitRunning=false
 end
