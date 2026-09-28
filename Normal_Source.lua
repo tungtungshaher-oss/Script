@@ -30,7 +30,7 @@ local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
 local STEAL_HOLD=cfg.STEAL_HOLD
-local BRAND_NAME="Tungtung v4"
+local BRAND_NAME="Tungtung v4.2"
 
 local LoadingGui=Instance.new("ScreenGui")
 LoadingGui.Name="TungTungLoading"
@@ -131,7 +131,7 @@ FlashLabel.AnchorPoint=Vector2.new(0.5,0.5)
 FlashLabel.Position=UDim2.new(0.5,0,0.5,0)
 FlashLabel.Size=UDim2.new(0,400,0,50)
 FlashLabel.BackgroundTransparency=1
-FlashLabel.Text="TUNGTUNG v4 LOADING..."
+FlashLabel.Text="TUNGTUNG v4.2 LOADING..."
 FlashLabel.TextColor3=Color3.fromRGB(255,255,255)
 FlashLabel.TextSize=22
 FlashLabel.Font=Enum.Font.GothamBlack
@@ -278,7 +278,7 @@ end)
 
 local AntiHitEnabled=false
 local IsAntiHitRunning=false
-local ANTI_HIT_SPEED=0.005
+local ANTI_HIT_SPEED=0.01
 
 local TeleportPoints={
     Vector3.new(500.62,241.28,-366.64),
