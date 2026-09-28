@@ -30,7 +30,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v4.6"
+local BRAND_NAME="Tungtung v5"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
@@ -236,7 +236,7 @@ FlashLabel.AnchorPoint=Vector2.new(0.5,0.5)
 FlashLabel.Position=UDim2.new(0.5,0,0.5,0)
 FlashLabel.Size=UDim2.new(0,400,0,50)
 FlashLabel.BackgroundTransparency=1
-FlashLabel.Text="TUNGTUNG v4.6 LOADING..."
+FlashLabel.Text="TUNGTUNG v5 LOADING..."
 FlashLabel.TextColor3=Color3.fromRGB(255,255,255)
 FlashLabel.TextSize=22
 FlashLabel.Font=Enum.Font.GothamBlack
@@ -317,7 +317,7 @@ end
 getgenv().Tungtung_BypassEnabled=true
 getgenv().Tungtung_AntiHit=false
 getgenv().Tungtung_BypassProximity=false
-getgenv().Tungtung_AntiLag=false
+getgenv().Tungtung_FixLag=false
 
 pcall(function()
     if hookfunction and getrawmetatable then
@@ -353,16 +353,19 @@ task.spawn(function()
     end)
 end)
 
-local AntiLagEnabled=false
-local antiLagConns={}
-local antiLagSaved={}
-local antiLagDebounce=false
-local antiLagAddedConn=nil
+local FixLagEnabled=false
+local fixLagConns={}
+local fixLagSaved={}
+local fixLagDebounce=false
+local fixLagAddedConn=nil
+local fixLagHeartbeat=nil
+local fixLagAccum=0
+local FIX_LAG_INTERVAL=1
 
 local function saveProp(obj,prop)
-    if not antiLagSaved[obj] then antiLagSaved[obj]={} end
-    if antiLagSaved[obj][prop]==nil then
-        antiLagSaved[obj][prop]=obj[prop]
+    if not fixLagSaved[obj] then fixLagSaved[obj]={} end
+    if fixLagSaved[obj][prop]==nil then
+        fixLagSaved[obj][prop]=obj[prop]
     end
 end
 
@@ -383,7 +386,7 @@ local function restoreVisualEffects()
         for _,obj in ipairs(Lighting:GetChildren()) do
             if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
             or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                local saved=antiLagSaved[obj]
+                local saved=fixLagSaved[obj]
                 if saved and saved.Enabled~=nil then
                     obj.Enabled=saved.Enabled
                 end
@@ -428,8 +431,8 @@ local function optimizeObject(obj)
 end
 
 local function optimizeWorkspace()
-    if antiLagDebounce then return end
-    antiLagDebounce=true
+    if fixLagDebounce then return end
+    fixLagDebounce=true
     task.spawn(function()
         pcall(function()
             saveProp(Workspace,"StreamingEnabled")
@@ -443,13 +446,13 @@ local function optimizeWorkspace()
                 if count%500==0 then task.wait() end
             end
         end)
-        antiLagDebounce=false
+        fixLagDebounce=false
     end)
 end
 
 local function restoreWorkspace()
     pcall(function()
-        for obj,props in pairs(antiLagSaved) do
+        for obj,props in pairs(fixLagSaved) do
             if obj then
                 for prop,value in pairs(props) do
                     pcall(function() obj[prop]=value end)
@@ -457,37 +460,87 @@ local function restoreWorkspace()
             end
         end
     end)
-    table.clear(antiLagSaved)
+    table.clear(fixLagSaved)
 end
 
-local function antiLagStart()
-    clearVisualEffects()
+local function applyQualitySettings()
+    pcall(function()
+        settings().Rendering.QualityLevel=Enum.QualityLevel.Level01
+    end)
+    pcall(function()
+        for _,obj in ipairs(Lighting:GetChildren()) do
+            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
+            or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                saveProp(obj,"Enabled")
+                obj.Enabled=false
+            end
+        end
+    end)
+    pcall(function()
+        Lighting.GlobalShadows=false
+        Lighting.FogEnd=100000
+        Lighting.Brightness=1
+        Lighting.EnvironmentDiffuseScale=0
+        Lighting.EnvironmentSpecularScale=0
+    end)
+end
+
+local function fixLagStart()
+    applyQualitySettings()
     optimizeWorkspace()
-    if not antiLagAddedConn then
-        antiLagAddedConn=Workspace.DescendantAdded:Connect(function(obj)
-            if not AntiLagEnabled then return end
+    if not fixLagAddedConn then
+        fixLagAddedConn=Workspace.DescendantAdded:Connect(function(obj)
+            if not FixLagEnabled then return end
             task.wait(0.05)
-            if not AntiLagEnabled or not obj.Parent then return end
+            if not FixLagEnabled or not obj.Parent then return end
             optimizeObject(obj)
         end)
     end
-    table.insert(antiLagConns,LP.CharacterAdded:Connect(function()
+    if not fixLagHeartbeat then
+        fixLagHeartbeat=RunService.Heartbeat:Connect(function(dt)
+            if not FixLagEnabled then return end
+            fixLagAccum=fixLagAccum+dt
+            if fixLagAccum>=FIX_LAG_INTERVAL then
+                fixLagAccum=0
+                pcall(function()
+                    for _,obj in ipairs(Lighting:GetChildren()) do
+                        if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
+                        or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                            if obj.Enabled then
+                                saveProp(obj,"Enabled")
+                                obj.Enabled=false
+                            end
+                        end
+                    end
+                end)
+                pcall(function()
+                    Lighting.GlobalShadows=false
+                end)
+            end
+        end)
+    end
+    table.insert(fixLagConns,LP.CharacterAdded:Connect(function()
         task.wait(1)
-        if AntiLagEnabled then
-            clearVisualEffects()
+        if FixLagEnabled then
+            applyQualitySettings()
         end
     end))
 end
 
-local function antiLagStop()
-    for _,c in ipairs(antiLagConns) do
+local function fixLagStop()
+    for _,c in ipairs(fixLagConns) do
         pcall(function() c:Disconnect() end)
     end
-    table.clear(antiLagConns)
-    if antiLagAddedConn then
-        antiLagAddedConn:Disconnect()
-        antiLagAddedConn=nil
+    table.clear(fixLagConns)
+    if fixLagAddedConn then
+        fixLagAddedConn:Disconnect()
+        fixLagAddedConn=nil
     end
+    if fixLagHeartbeat then
+        fixLagHeartbeat:Disconnect()
+        fixLagHeartbeat=nil
+    end
+    fixLagAccum=0
     restoreVisualEffects()
     restoreWorkspace()
     pcall(function()
@@ -1072,22 +1125,22 @@ local function ShowMainUI()
         return TrapCleanerEnabled
     end)
 
-    makeRow(192,"Anti Lag",function() return AntiLagEnabled end,function()
-        AntiLagEnabled=not AntiLagEnabled
-        getgenv().Tungtung_AntiLag=AntiLagEnabled
-        if AntiLagEnabled then
-            antiLagStart()
+    makeRow(192,"Fix Lag",function() return FixLagEnabled end,function()
+        FixLagEnabled=not FixLagEnabled
+        getgenv().Tungtung_FixLag=FixLagEnabled
+        if FixLagEnabled then
+            fixLagStart()
         else
-            antiLagStop()
+            fixLagStop()
         end
         pcall(function()
             StarterGui:SetCore("SendNotification",{
                 Title=NOTIF_NAME,
-                Text=AntiLagEnabled and "Anti-Lag ON" or "Anti-Lag OFF",
+                Text=FixLagEnabled and "Fix Lag ON" or "Fix Lag OFF",
                 Duration=2,
             })
         end)
-        return AntiLagEnabled
+        return FixLagEnabled
     end)
 
     local dragging,dragStart,startPos
