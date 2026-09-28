@@ -29,7 +29,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v4.5"
+local BRAND_NAME="Tungtung v4.6"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
@@ -235,7 +235,7 @@ FlashLabel.AnchorPoint=Vector2.new(0.5,0.5)
 FlashLabel.Position=UDim2.new(0.5,0,0.5,0)
 FlashLabel.Size=UDim2.new(0,400,0,50)
 FlashLabel.BackgroundTransparency=1
-FlashLabel.Text="TUNGTUNG v4.5 LOADING..."
+FlashLabel.Text="TUNGTUNG v4.6 LOADING..."
 FlashLabel.TextColor3=Color3.fromRGB(255,255,255)
 FlashLabel.TextSize=22
 FlashLabel.Font=Enum.Font.GothamBlack
@@ -313,40 +313,6 @@ local function DoTeleFlash()
     end)
 end
 
-local notifToken=0
-local function ShowCountdownNotification()
-    notifToken+=1
-    local myToken=notifToken
-    pcall(function()
-        StarterGui:SetCore("SendNotification",{
-            Title=NOTIF_NAME,
-            Text="Bạn có thể nhặt sau 5 giây nữa để không bị chết",
-            Duration=5,
-        })
-    end)
-    task.spawn(function()
-        for i=5,1,-1 do
-            if notifToken~=myToken then return end
-            pcall(function()
-                StarterGui:SetCore("SendNotification",{
-                    Title=NOTIF_NAME,
-                    Text="Chờ "..i.."s nữa để nhặt...",
-                    Duration=1,
-                })
-            end)
-            task.wait(1)
-        end
-        if notifToken~=myToken then return end
-        pcall(function()
-            StarterGui:SetCore("SendNotification",{
-                Title=NOTIF_NAME,
-                Text="✅ Bạn có thể nhặt tiếp!",
-                Duration=2,
-            })
-        end)
-    end)
-end
-
 getgenv().Tungtung_BypassEnabled=true
 getgenv().Tungtung_AntiHit=false
 getgenv().Tungtung_BypassProximity=false
@@ -417,7 +383,6 @@ end)
 local AntiHitEnabled=false
 local IsAntiHitRunning=false
 local ANTI_HIT_SPEED=0.005
-local RETURN_DELAY=0.01
 
 local TeleportPoints={
     Vector3.new(500.62,241.28,-366.64),
@@ -435,9 +400,6 @@ local function TeleportRoute(character)
     if not character then return end
     local root=character:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    
-    local originalCFrame=root.CFrame
-    
     IsAntiHitRunning=true
     for _,position in ipairs(TeleportPoints) do
         if not AntiHitEnabled or not root.Parent then
@@ -447,12 +409,6 @@ local function TeleportRoute(character)
         root.CFrame=CFrame.new(position)
         task.wait(ANTI_HIT_SPEED)
     end
-    
-    task.wait(RETURN_DELAY)
-    if AntiHitEnabled and root.Parent then
-        root.CFrame=originalCFrame
-    end
-    
     IsAntiHitRunning=false
 end
 
@@ -462,7 +418,6 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     local character=LP.Character
     if not character then return end
     DoTeleFlash()
-    ShowCountdownNotification()
     task.spawn(function()
         TeleportRoute(character)
     end)
