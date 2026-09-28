@@ -29,8 +29,8 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local STEAL_HOLD=cfg.STEAL_HOLD
-local BRAND_NAME="Tungtung v4.2"
+local BRAND_NAME="Tungtung v4.3"
+local NOTIF_NAME="Tungtung Hub"
 
 local LoadingGui=Instance.new("ScreenGui")
 LoadingGui.Name="TungTungLoading"
@@ -131,7 +131,7 @@ FlashLabel.AnchorPoint=Vector2.new(0.5,0.5)
 FlashLabel.Position=UDim2.new(0.5,0,0.5,0)
 FlashLabel.Size=UDim2.new(0,400,0,50)
 FlashLabel.BackgroundTransparency=1
-FlashLabel.Text="TUNGTUNG v4.2 LOADING..."
+FlashLabel.Text="TUNGTUNG v4.3 LOADING..."
 FlashLabel.TextColor3=Color3.fromRGB(255,255,255)
 FlashLabel.TextSize=22
 FlashLabel.Font=Enum.Font.GothamBlack
@@ -209,6 +209,40 @@ local function DoTeleFlash()
     end)
 end
 
+local notifToken=0
+local function ShowCountdownNotification()
+    notifToken+=1
+    local myToken=notifToken
+    pcall(function()
+        StarterGui:SetCore("SendNotification",{
+            Title=NOTIF_NAME,
+            Text="Bạn có thể nhặt sau 5 giây nữa để không bị chết",
+            Duration=5,
+        })
+    end)
+    task.spawn(function()
+        for i=5,1,-1 do
+            if notifToken~=myToken then return end
+            pcall(function()
+                StarterGui:SetCore("SendNotification",{
+                    Title=NOTIF_NAME,
+                    Text="Chờ "..i.."s nữa để nhặt...",
+                    Duration=1,
+                })
+            end)
+            task.wait(1)
+        end
+        if notifToken~=myToken then return end
+        pcall(function()
+            StarterGui:SetCore("SendNotification",{
+                Title=NOTIF_NAME,
+                Text="✅ Bạn có thể nhặt tiếp!",
+                Duration=2,
+            })
+        end)
+    end)
+end
+
 getgenv().Tungtung_BypassEnabled=true
 getgenv().Tungtung_AntiHit=false
 getgenv().Tungtung_BypassProximity=false
@@ -278,7 +312,7 @@ end)
 
 local AntiHitEnabled=false
 local IsAntiHitRunning=false
-local ANTI_HIT_SPEED=0.01
+local ANTI_HIT_SPEED=0.005
 
 local TeleportPoints={
     Vector3.new(500.62,241.28,-366.64),
@@ -319,6 +353,7 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     local character=LP.Character
     if not character then return end
     DoTeleFlash()
+    ShowCountdownNotification()
     task.spawn(function()
         TeleportRoute(character)
     end)
@@ -534,7 +569,7 @@ local function ShowMainUI()
         getgenv().Tungtung_AntiHit=AntiHitEnabled
         pcall(function()
             StarterGui:SetCore("SendNotification",{
-                Title=BRAND_NAME,
+                Title=NOTIF_NAME,
                 Text=AntiHitEnabled and "Anti-Hit ON" or "Anti-Hit OFF",
                 Duration=2,
             })
@@ -552,7 +587,7 @@ local function ShowMainUI()
         end
         pcall(function()
             StarterGui:SetCore("SendNotification",{
-                Title=BRAND_NAME,
+                Title=NOTIF_NAME,
                 Text=BypassProximityEnabled and "Bypass Proximity ON" or "Bypass Proximity OFF",
                 Duration=2,
             })
