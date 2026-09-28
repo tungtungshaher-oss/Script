@@ -29,7 +29,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v4.3"
+local BRAND_NAME="Tungtung v4.4"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
@@ -235,7 +235,7 @@ FlashLabel.AnchorPoint=Vector2.new(0.5,0.5)
 FlashLabel.Position=UDim2.new(0.5,0,0.5,0)
 FlashLabel.Size=UDim2.new(0,400,0,50)
 FlashLabel.BackgroundTransparency=1
-FlashLabel.Text="TUNGTUNG v4.3 LOADING..."
+FlashLabel.Text="TUNGTUNG v4.4 LOADING..."
 FlashLabel.TextColor3=Color3.fromRGB(255,255,255)
 FlashLabel.TextSize=22
 FlashLabel.Font=Enum.Font.GothamBlack
@@ -505,6 +505,169 @@ Workspace.DescendantAdded:Connect(function(obj)
     end
 end)
 
+local AntiRagdollEnabled=false
+local antiRagdollConns={}
+local antiRagdollHB=nil
+
+local function arClearConns()
+    for _,c in ipairs(antiRagdollConns) do
+        pcall(function() c:Disconnect() end)
+    end
+    table.clear(antiRagdollConns)
+end
+
+local function arRestore(hum,char)
+    if not hum or not hum.Parent then return end
+    if hum.PlatformStand then hum.PlatformStand=false end
+    if not hum.AutoRotate then hum.AutoRotate=true end
+    local state=hum:GetState()
+    if state==Enum.HumanoidStateType.Physics
+    or state==Enum.HumanoidStateType.FallingDown
+    or state==Enum.HumanoidStateType.Ragdoll then
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+    end
+    if hum.Sit then hum.Sit=false end
+    pcall(function()
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
+    end)
+    if char then
+        for _,part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                if part.Anchored and part.Name~="HumanoidRootPart" then part.Anchored=false end
+                if not part.CanCollide and part.Name~="HumanoidRootPart" then part.CanCollide=true end
+            elseif part:IsA("Motor6D") then
+                if not part.Enabled then part.Enabled=true end
+            end
+        end
+    end
+end
+
+local function arSetup(hum,char)
+    if not hum then return end
+    pcall(function()
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
+    end)
+    table.insert(antiRagdollConns,hum.StateChanged:Connect(function(_,newState)
+        if not AntiRagdollEnabled then return end
+        if newState==Enum.HumanoidStateType.Physics
+        or newState==Enum.HumanoidStateType.FallingDown
+        or newState==Enum.HumanoidStateType.Ragdoll then
+            task.spawn(function() arRestore(hum,char) end)
+        end
+    end))
+    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("PlatformStand"):Connect(function()
+        if not AntiRagdollEnabled then return end
+        if hum.PlatformStand then hum.PlatformStand=false end
+    end))
+end
+
+local function arStart()
+    local char=LP.Character
+    if char then
+        local hum=char:FindFirstChildOfClass("Humanoid")
+        arSetup(hum,char)
+    end
+    table.insert(antiRagdollConns,LP.CharacterAdded:Connect(function(newChar)
+        newChar:WaitForChild("Humanoid",5)
+        task.wait(0.3)
+        if AntiRagdollEnabled then
+            local hum=newChar:FindFirstChildOfClass("Humanoid")
+            arSetup(hum,newChar)
+            arRestore(hum,newChar)
+        end
+    end))
+    antiRagdollHB=RunService.Heartbeat:Connect(function()
+        if not AntiRagdollEnabled then return end
+        local c=LP.Character
+        if not c then return end
+        local h=c:FindFirstChildOfClass("Humanoid")
+        if not h then return end
+        if h.PlatformStand then h.PlatformStand=false end
+        local state=h:GetState()
+        if state==Enum.HumanoidStateType.Physics
+        or state==Enum.HumanoidStateType.FallingDown
+        or state==Enum.HumanoidStateType.Ragdoll then
+            arRestore(h,c)
+        end
+        local hrp=c:FindFirstChild("HumanoidRootPart")
+        if hrp and hrp.Anchored then hrp.Anchored=false end
+    end)
+end
+
+local function arStop()
+    arClearConns()
+    if antiRagdollHB then antiRagdollHB:Disconnect() antiRagdollHB=nil end
+    local char=LP.Character
+    if char then
+        local hum=char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            pcall(function()
+                hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,true)
+                hum:SetStateEnabled(Enum.HumanoidStateType.Physics,true)
+            end)
+        end
+    end
+end
+
+local TrapCleanerEnabled=false
+local trapCleanerConn=nil
+
+local function isPlayerTrap(obj)
+    if not obj or not obj.Parent then return false end
+    if not obj:IsA("BasePart") then return false end
+    if obj.Name~="PlayerTrap" then return false end
+    local parent=obj.Parent
+    if parent and parent.Name=="Transient" then return true end
+    return false
+end
+
+local function trapDestroy(obj)
+    if isPlayerTrap(obj) then
+        pcall(function()
+            local hb=obj:FindFirstChild("Hitbox")
+            if hb then hb:Destroy() end
+            obj:Destroy()
+        end)
+    end
+end
+
+local function trapScan()
+    local transient=Workspace:FindFirstChild("Transient")
+    if not transient then return end
+    for _,obj in ipairs(transient:GetChildren()) do
+        trapDestroy(obj)
+    end
+end
+
+local function trapStart()
+    trapScan()
+    trapCleanerConn=Workspace.DescendantAdded:Connect(function(obj)
+        if not TrapCleanerEnabled then return end
+        if obj.Name=="PlayerTrap" then
+            task.wait(0.01)
+            trapDestroy(obj)
+        end
+    end)
+    task.spawn(function()
+        while TrapCleanerEnabled do
+            task.wait(0.5)
+            trapScan()
+        end
+    end)
+end
+
+local function trapStop()
+    if trapCleanerConn then
+        trapCleanerConn:Disconnect()
+        trapCleanerConn=nil
+    end
+end
+
 local function ShowMainUI()
     local ScreenGui=Instance.new("ScreenGui")
     ScreenGui.Name="TungTungScreen"
@@ -530,7 +693,7 @@ local function ShowMainUI()
     fS.Color=Color3.fromRGB(150,80,255)
 
     local panel=Instance.new("Frame")
-    panel.Size=UDim2.fromOffset(300,160)
+    panel.Size=UDim2.fromOffset(300,260)
     panel.Position=UDim2.new(1,-315,0,15)
     panel.BackgroundColor3=Color3.fromRGB(12,12,16)
     panel.BorderSizePixel=0
@@ -600,7 +763,7 @@ local function ShowMainUI()
 
     local function makeRow(y,labelText,getState,onToggle)
         local row=Instance.new("Frame")
-        row.Size=UDim2.new(1,0,0,46)
+        row.Size=UDim2.new(1,0,0,44)
         row.Position=UDim2.new(0,0,0,y)
         row.BackgroundColor3=Color3.fromRGB(18,18,24)
         row.BorderSizePixel=0
@@ -663,7 +826,7 @@ local function ShowMainUI()
         end)
     end
 
-    makeRow(0,"Super Anti Hit ⚡",function() return AntiHitEnabled end,function()
+    makeRow(0,"Super Anti Hit",function() return AntiHitEnabled end,function()
         AntiHitEnabled=not AntiHitEnabled
         getgenv().Tungtung_AntiHit=AntiHitEnabled
         pcall(function()
@@ -676,7 +839,7 @@ local function ShowMainUI()
         return AntiHitEnabled
     end)
 
-    makeRow(50,"Bypass Proximity ⚡",function() return BypassProximityEnabled end,function()
+    makeRow(48,"Bypass Proximity",function() return BypassProximityEnabled end,function()
         BypassProximityEnabled=not BypassProximityEnabled
         getgenv().Tungtung_BypassProximity=BypassProximityEnabled
         if BypassProximityEnabled then
@@ -692,6 +855,45 @@ local function ShowMainUI()
             })
         end)
         return BypassProximityEnabled
+    end)
+
+    makeRow(96,"Anti Ragdoll",function() return AntiRagdollEnabled end,function()
+        AntiRagdollEnabled=not AntiRagdollEnabled
+        if AntiRagdollEnabled then
+            arStart()
+            local char=LP.Character
+            if char then
+                local hum=char:FindFirstChildOfClass("Humanoid")
+                arRestore(hum,char)
+            end
+        else
+            arStop()
+        end
+        pcall(function()
+            StarterGui:SetCore("SendNotification",{
+                Title=NOTIF_NAME,
+                Text=AntiRagdollEnabled and "Anti-Ragdoll ON" or "Anti-Ragdoll OFF",
+                Duration=2,
+            })
+        end)
+        return AntiRagdollEnabled
+    end)
+
+    makeRow(144,"Trap Cleaner",function() return TrapCleanerEnabled end,function()
+        TrapCleanerEnabled=not TrapCleanerEnabled
+        if TrapCleanerEnabled then
+            trapStart()
+        else
+            trapStop()
+        end
+        pcall(function()
+            StarterGui:SetCore("SendNotification",{
+                Title=NOTIF_NAME,
+                Text=TrapCleanerEnabled and "Trap Cleaner ON" or "Trap Cleaner OFF",
+                Duration=2,
+            })
+        end)
+        return TrapCleanerEnabled
     end)
 
     local dragging,dragStart,startPos
