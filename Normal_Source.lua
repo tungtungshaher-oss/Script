@@ -17,7 +17,7 @@ local function GC()
     return CoreGui or PlayerGui
 end
 
-for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_Ended","TungTungLoading","TungTung_TeleFlash","TungTungIntro","TungTungPosTracker"}) do
+for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_Ended","TungTungLoading","TungTung_TeleFlash","TungTungIntro","TungTungPosTracker","TungTungAntiGuardCfg"}) do
     pcall(function() if PlayerGui:FindFirstChild(n) then PlayerGui[n]:Destroy() end end)
     pcall(function() if CoreGui:FindFirstChild(n) then CoreGui[n]:Destroy() end end)
 end
@@ -27,13 +27,35 @@ local POS_B=Vector3.new(543.79,70.57,-362.73)
 
 local MoveEnabled=false
 local IsMoving=false
+
 local antiGuardEnabled=false
 local antiGuardActive=false
 local antiGuardDisguise=nil
+local antiGuardPending=false
+
+local FRAME_WAIT=1
+
+local antiGuardCfg={
+    Step1At=0.1,
+    Step2At=0.33,
+    Step3At=0.56,
+    Step4At=0.75,
+    ReleaseAt=0.8,
+    OffsetX=-90,
+    OffsetZ=-35,
+    Height=45,
+    Limp=true,
+}
 
 local SAVED_JUMP_POWER=nil
 local SAVED_JUMP_HEIGHT=nil
 local CONTROLS_LOCKED=false
+
+local agPaths={
+    {Path={"GearGiver_Slap","Podium"},Offset=Vector3.new(-16.415,21.072,-6.106)},
+    {Path={"World","Machines","RiftMachine","Rift","Meshes/VoidPortal_Cube.003"},Offset=Vector3.new(-26.776,1.75,18.665)},
+    {Path={"__OBJECTS","Machines","RiftMachine","Rift","Meshes/VoidPortal_Cube.003"},Offset=Vector3.new(-26.776,1.75,18.665)},
+}
 
 local function getRoot()
     local char=LP.Character
@@ -184,29 +206,6 @@ local function runRoute()
     IsMoving=false
 end
 
-local agConfig={
-    LineOffset=8,
-    Height=45,
-    OffsetX=-90,
-    OffsetZ=-35,
-    Limp=true,
-    Facing="Zero",
-    Freeze=false,
-    Steps={
-        {At=0.1,To="home"},
-        {At=0.33,To="home"},
-        {At=0.56,To="home"},
-        {At=0.75,To="start"},
-    },
-    ReleaseAt=0.8,
-}
-
-local agPaths={
-    {Path={"GearGiver_Slap","Podium"},Offset=Vector3.new(-16.415,21.072,-6.106)},
-    {Path={"World","Machines","RiftMachine","Rift","Meshes/VoidPortal_Cube.003"},Offset=Vector3.new(-26.776,1.75,18.665)},
-    {Path={"__OBJECTS","Machines","RiftMachine","Rift","Meshes/VoidPortal_Cube.003"},Offset=Vector3.new(-26.776,1.75,18.665)},
-}
-
 local function agRandName()
     local t={}
     for i=1,math.random(10,16) do
@@ -343,13 +342,12 @@ local function agHome()
     return Vector3.new(528.7,70.57,-364.11)
 end
 
-local function agPivot(char,root,dest,rot,freeze)
+local function agPivot(char,root,dest,rot)
     local cf=CFrame.new(dest)*rot
     pcall(function() char:PivotTo(cf) end)
     if (root.Position-dest).Magnitude>3 then
         pcall(function() root.CFrame=cf end)
     end
-    if freeze==false then return end
     for _,descendant in ipairs(char:GetDescendants()) do
         if descendant:IsA("BasePart") then
             pcall(function()
@@ -366,11 +364,10 @@ local function agEvade()
     local hum=char and char:FindFirstChildOfClass("Humanoid")
     if not root or not hum or hum.Health<=0 then return end
     antiGuardActive=true
-    local home=agHome()+Vector3.new(agConfig.OffsetX,agConfig.Height,agConfig.OffsetZ)
+    local home=agHome()+Vector3.new(antiGuardCfg.OffsetX,antiGuardCfg.Height,antiGuardCfg.OffsetZ)
     local startCF=root.CFrame
     local startPos=startCF.Position
-    local rot=agConfig.Facing=="Zero" and CFrame.new() or startCF.Rotation
-    local freeze=agConfig.Freeze~=false
+    local rot=CFrame.new()
     pcall(agDisguiseOn,char)
     pcall(function() hum.BreakJointsOnDeath=false end)
     local startAt=os.clock()
@@ -379,57 +376,63 @@ local function agEvade()
     end
     local function waitUntil(t)
         while alive() and os.clock()-startAt<t do
-            if freeze then
-                pcall(function()
-                    root.AssemblyLinearVelocity=Vector3.zero
-                    root.AssemblyAngularVelocity=Vector3.zero
-                end)
-            end
+            pcall(function()
+                root.AssemblyLinearVelocity=Vector3.zero
+                root.AssemblyAngularVelocity=Vector3.zero
+            end)
             RunService.Heartbeat:Wait()
         end
         return alive()
     end
-    if waitUntil(0) and agConfig.Limp~=false then
+    if waitUntil(0) and antiGuardCfg.Limp then
         pcall(function() hum.PlatformStand=true end)
     end
-    for _,step in ipairs(agConfig.Steps) do
+    local steps={
+        {At=antiGuardCfg.Step1At,To="home"},
+        {At=antiGuardCfg.Step2At,To="home"},
+        {At=antiGuardCfg.Step3At,To="home"},
+        {At=antiGuardCfg.Step4At,To="start"},
+    }
+    for _,step in ipairs(steps) do
         if not waitUntil(tonumber(step.At) or 0) then break end
         local dest=(step.To=="start" and startPos or home)
-        agPivot(char,root,dest,rot,freeze)
-        RunService.PreSimulation:Wait()
+        agPivot(char,root,dest,rot)
+        for i=1,FRAME_WAIT do
+            RunService.PreSimulation:Wait()
+        end
         if alive() and (root.Position-dest).Magnitude>3 then
-            agPivot(char,root,dest,rot,freeze)
+            agPivot(char,root,dest,rot)
         end
     end
-    waitUntil(agConfig.ReleaseAt)
+    waitUntil(antiGuardCfg.ReleaseAt)
     pcall(function() hum.PlatformStand=false end)
     agDisguiseOff()
     antiGuardActive=false
+    antiGuardPending=false
 end
 
 ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     if player~=LP then return end
+    if not antiGuardEnabled then
+        if MoveEnabled then
+            task.spawn(runRoute)
+        end
+        return
+    end
+    if antiGuardActive or antiGuardPending then return end
+    antiGuardPending=true
     task.spawn(function()
-        if antiGuardEnabled then
-            if not antiGuardActive then
-                pcall(agEvade)
-            end
+        if not antiGuardActive then
+            pcall(agEvade)
+        end
+    end)
+    if MoveEnabled then
+        task.spawn(function()
             local t0=os.clock()
             while antiGuardActive and os.clock()-t0<10 do
                 RunService.Heartbeat:Wait()
             end
-        end
-        if MoveEnabled then
             runRoute()
-        end
-    end)
-end)
-
-LP:GetAttributeChangedSignal("RagdollEndTime"):Connect(function()
-    local rag=tonumber(LP:GetAttribute("RagdollEndTime"))
-    if rag and rag>Workspace:GetServerTimeNow() and antiGuardEnabled and not antiGuardActive then
-        task.spawn(function()
-            pcall(agEvade)
         end)
     end
 end)
@@ -446,7 +449,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v6"
+local BRAND_NAME="Tungtung v6.2"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
