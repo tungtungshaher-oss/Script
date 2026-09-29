@@ -22,12 +22,6 @@ for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung
     pcall(function() if CoreGui:FindFirstChild(n) then CoreGui[n]:Destroy() end end)
 end
 
-local POS_A=Vector3.new(566.18,70.57,-362.39)
-local POS_B=Vector3.new(543.79,70.57,-362.73)
-
-local MoveEnabled=false
-local IsMoving=false
-
 local AntiHitEnabled=false
 local IsAntiHitRunning=false
 local ANTI_HIT_SPEED=0.005
@@ -43,159 +37,6 @@ local TeleportPoints={
     Vector3.new(538.01,70.28,-365.55),
     Vector3.new(546.80,70.28,-364.40)
 }
-
-local function getRoot()
-    local char=LP.Character
-    return char and char:FindFirstChild("HumanoidRootPart") or nil
-end
-
-local function getHumanoid()
-    local char=LP.Character
-    return char and char:FindFirstChildOfClass("Humanoid") or nil
-end
-
-local function hideJumpButtons(hide)
-    local playerGui=LP:FindFirstChildOfClass("PlayerGui")
-    for _,parent in ipairs({playerGui,CoreGui}) do
-        if parent then
-            for _,name in ipairs({"JumpButton","MobileJumpButton","Jump","JumpButtonMobile"}) do
-                local ok,v=pcall(function() return parent:FindFirstChild(name,true) end)
-                if ok and v and v:IsA("GuiObject") then
-                    pcall(function() v.Visible=not hide end)
-                end
-            end
-        end
-    end
-end
-
-local SAVED_JUMP_POWER=nil
-local SAVED_JUMP_HEIGHT=nil
-local CONTROLS_LOCKED=false
-
-local function getControls()
-    local ok,result=pcall(function()
-        local playerScripts=LP:FindFirstChild("PlayerScripts")
-        local playerModule=playerScripts and playerScripts:FindFirstChild("PlayerModule")
-        if not playerModule then return nil end
-        return require(playerModule):GetControls()
-    end)
-    return ok and result or nil
-end
-
-local function lockControls()
-    if CONTROLS_LOCKED then return end
-    CONTROLS_LOCKED=true
-    local controls=getControls()
-    if controls then
-        pcall(function() controls:Disable() end)
-    end
-    pcall(function() UserInputService.MouseBehavior=Enum.MouseBehavior.LockCenter end)
-    hideJumpButtons(true)
-end
-
-local function unlockControls()
-    if not CONTROLS_LOCKED then return end
-    CONTROLS_LOCKED=false
-    local controls=getControls()
-    if controls then
-        pcall(function() controls:Enable() end)
-    end
-    pcall(function() UserInputService.MouseBehavior=Enum.MouseBehavior.Default end)
-    hideJumpButtons(false)
-end
-
-local function lockJump()
-    local hum=getHumanoid()
-    if not hum then return end
-    if SAVED_JUMP_POWER==nil then SAVED_JUMP_POWER=hum.JumpPower end
-    if SAVED_JUMP_HEIGHT==nil then SAVED_JUMP_HEIGHT=hum.JumpHeight end
-    pcall(function() hum.JumpPower=0 end)
-    pcall(function() hum.JumpHeight=0 end)
-    pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Jumping,false) end)
-end
-
-local function unlockJump()
-    local hum=getHumanoid()
-    if not hum then return end
-    if SAVED_JUMP_POWER~=nil then pcall(function() hum.JumpPower=SAVED_JUMP_POWER end) end
-    if SAVED_JUMP_HEIGHT~=nil then pcall(function() hum.JumpHeight=SAVED_JUMP_HEIGHT end) end
-    pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Jumping,true) end)
-    SAVED_JUMP_POWER=nil
-    SAVED_JUMP_HEIGHT=nil
-end
-
-local function walkTo(target)
-    local root=getRoot()
-    local hum=getHumanoid()
-    if not root or not hum then return false end
-
-    local baseSpeed=hum.WalkSpeed
-    local moveSpeed=baseSpeed-math.random(2,4)
-    if moveSpeed<1 then moveSpeed=1 end
-
-    local reach=false
-
-    local function alive()
-        return getRoot()~=nil and getHumanoid()~=nil and hum.Health>0 and MoveEnabled
-    end
-
-    while alive() and not reach do
-        local r=getRoot()
-        if not r then break end
-        local diff=target-r.Position
-        local flatDiff=Vector3.new(diff.X,0,diff.Z)
-        local dist=flatDiff.Magnitude
-        if dist<=1.5 and math.abs(diff.Y)<=2 then
-            reach=true
-            break
-        end
-        local dir=flatDiff.Magnitude>0.01 and flatDiff.Unit or Vector3.zero
-        local yDiff=diff.Y
-
-        local velocity=Vector3.new(dir.X*moveSpeed,yDiff*2,dir.Z*moveSpeed)
-        pcall(function()
-            r.AssemblyLinearVelocity=velocity
-        end)
-        pcall(function()
-            if dir.Magnitude>0.01 then
-                r.CFrame=CFrame.lookAt(r.Position,r.Position+dir)
-            end
-        end)
-        RunService.Heartbeat:Wait()
-    end
-
-    local r=getRoot()
-    if r then
-        pcall(function()
-            r.AssemblyLinearVelocity=Vector3.new(0,r.AssemblyLinearVelocity.Y,0)
-        end)
-    end
-    return reach
-end
-
-local function runRoute()
-    if IsMoving then return end
-    IsMoving=true
-    lockJump()
-    lockControls()
-
-    if not walkTo(POS_A) then
-        IsMoving=false
-        unlockControls()
-        unlockJump()
-        return
-    end
-    if not walkTo(POS_B) then
-        IsMoving=false
-        unlockControls()
-        unlockJump()
-        return
-    end
-
-    unlockControls()
-    unlockJump()
-    IsMoving=false
-end
 
 local function TeleportRoute(character)
     if not character then return end
@@ -215,23 +56,12 @@ end
 
 ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     if player~=LP then return end
-    if AntiHitEnabled and not IsAntiHitRunning then
-        local char=LP.Character
-        if char then
-            task.spawn(function()
-                TeleportRoute(char)
-            end)
-        end
-    end
-    if MoveEnabled then
-        task.spawn(function()
-            local t0=os.clock()
-            while IsAntiHitRunning and os.clock()-t0<10 do
-                RunService.Heartbeat:Wait()
-            end
-            runRoute()
-        end)
-    end
+    if not AntiHitEnabled or IsAntiHitRunning then return end
+    local char=LP.Character
+    if not char then return end
+    task.spawn(function()
+        TeleportRoute(char)
+    end)
 end)
 
 local BypassProximityEnabled=false
@@ -306,6 +136,7 @@ end
 
 local function arRestore(hum,char)
     if not hum or not hum.Parent then return end
+    if hum.Health<=0 then return end
     pcall(function()
         if hum.PlatformStand then hum.PlatformStand=false end
         if not hum.AutoRotate then hum.AutoRotate=true end
@@ -313,7 +144,10 @@ local function arRestore(hum,char)
         if hum.WalkSpeed==0 then hum.WalkSpeed=16 end
         if hum.JumpPower==0 then hum.JumpPower=50 end
         if hum.JumpHeight==0 then hum.JumpHeight=7.2 end
-        if hum.Health<=0 then return end
+        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Dead,false)
         local state=hum:GetState()
         if state==Enum.HumanoidStateType.Physics
         or state==Enum.HumanoidStateType.FallingDown
@@ -322,29 +156,12 @@ local function arRestore(hum,char)
             hum:ChangeState(Enum.HumanoidStateType.GettingUp)
             hum:ChangeState(Enum.HumanoidStateType.Running)
         end
-        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.Dead,false)
     end)
     if char then
         pcall(function()
             for _,part in ipairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    if part.Name=="Head" or part.Name=="Torso" or part.Name=="UpperTorso" or part.Name=="LowerTorso" or part.Name=="HumanoidRootPart" then
-                        if part.Anchored then part.Anchored=false end
-                        if part.CanCollide==false and part.Name~="HumanoidRootPart" then part.CanCollide=true end
-                    end
-                    for _,joint in ipairs(part:GetChildren()) do
-                        if joint:IsA("Motor6D") and joint.Enabled==false then
-                            joint.Enabled=true
-                        end
-                    end
-                elseif part:IsA("BallSocketConstraint") or part:IsA("HingeConstraint")
-                or part:IsA("NoCollisionConstraint") or part:IsA("RopeConstraint")
-                or part:IsA("RodConstraint") or part:IsA("SpringConstraint")
-                or part:IsA("UniversalConstraint") then
-                    if part.Enabled then part.Enabled=false end
+                    if part.Anchored then part.Anchored=false end
                 end
             end
         end)
@@ -378,14 +195,6 @@ local function arSetup(hum,char)
         if not AntiRagdollEnabled then return end
         if hum.WalkSpeed<1 then hum.WalkSpeed=16 end
     end))
-    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("JumpPower"):Connect(function()
-        if not AntiRagdollEnabled then return end
-        if hum.JumpPower<1 then hum.JumpPower=50 end
-    end))
-    table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("JumpHeight"):Connect(function()
-        if not AntiRagdollEnabled then return end
-        if hum.JumpHeight<1 then hum.JumpHeight=7.2 end
-    end))
     table.insert(antiRagdollConns,hum:GetPropertyChangedSignal("Health"):Connect(function()
         if not AntiRagdollEnabled then return end
         if hum.Health<=0 then task.spawn(arRestore,hum,char) end
@@ -395,32 +204,6 @@ local function arSetup(hum,char)
         table.insert(antiRagdollConns,root:GetPropertyChangedSignal("Anchored"):Connect(function()
             if not AntiRagdollEnabled then return end
             if root.Anchored then root.Anchored=false end
-        end))
-    end
-    if char then
-        table.insert(antiRagdollCharConns,char.DescendantAdded:Connect(function(obj)
-            if not AntiRagdollEnabled then return end
-            if obj:IsA("BasePart") then
-                task.wait(0.05)
-                pcall(function()
-                    if obj.Name=="Head" or obj.Name=="Torso" or obj.Name=="UpperTorso" or obj.Name=="LowerTorso" then
-                        if obj.Anchored then obj.Anchored=false end
-                    end
-                end)
-            elseif obj:IsA("Motor6D") then
-                task.wait(0.05)
-                pcall(function()
-                    if obj.Enabled==false then obj.Enabled=true end
-                end)
-            elseif obj:IsA("BallSocketConstraint") or obj:IsA("HingeConstraint")
-            or obj:IsA("NoCollisionConstraint") or obj:IsA("RopeConstraint")
-            or obj:IsA("RodConstraint") or obj:IsA("SpringConstraint")
-            or obj:IsA("UniversalConstraint") then
-                task.wait(0.05)
-                pcall(function()
-                    if obj.Enabled then obj.Enabled=false end
-                end)
-            end
         end))
     end
 end
@@ -433,29 +216,13 @@ local function arStart()
             if not char then return end
             local hum=char:FindFirstChildOfClass("Humanoid")
             if not hum then return end
+            if hum.Health<=0 then return end
             local state=hum:GetState()
             if hum.PlatformStand
             or state==Enum.HumanoidStateType.Physics
             or state==Enum.HumanoidStateType.FallingDown
             or state==Enum.HumanoidStateType.Ragdoll then
                 arRestore(hum,char)
-            end
-            for _,part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    if part.Name=="Head" or part.Name=="Torso" or part.Name=="UpperTorso" or part.Name=="LowerTorso" then
-                        if part.Anchored then part.Anchored=false end
-                    end
-                    for _,joint in ipairs(part:GetChildren()) do
-                        if joint:IsA("Motor6D") and joint.Enabled==false then
-                            joint.Enabled=true
-                        end
-                    end
-                elseif part:IsA("BallSocketConstraint") or part:IsA("HingeConstraint")
-                or part:IsA("NoCollisionConstraint") or part:IsA("RopeConstraint")
-                or part:IsA("RodConstraint") or part:IsA("SpringConstraint")
-                or part:IsA("UniversalConstraint") then
-                    if part.Enabled then part.Enabled=false end
-                end
             end
         end)
     end
@@ -512,11 +279,13 @@ local function trapMove(obj)
         movedTraps[obj]=true
         obj.CanTouch=false
         obj.CanCollide=false
+        obj.CanQuery=false
         obj.CFrame=obj.CFrame-Vector3.new(0,TRAP_DROP_DISTANCE,0)
         local hb=obj:FindFirstChild("Hitbox")
         if hb and hb:IsA("BasePart") then
             hb.CanTouch=false
             hb.CanCollide=false
+            hb.CanQuery=false
             hb.CFrame=hb.CFrame-Vector3.new(0,TRAP_DROP_DISTANCE,0)
         end
     end)
@@ -688,11 +457,99 @@ local function fixLagStop()
     restoreWorkspace()
 end
 
+local AntiAfkEnabled=true
+local afkSilenced={}
+local afkUpvalueHits={}
+local afkDummy=setmetatable({},{__index=function() return function() end end})
+
+local function afkGetConns()
+    if type(getconnections)~="function" then return {} end
+    local ok,result=pcall(getconnections,LP.Idled)
+    return ok and type(result)=="table" and result or {}
+end
+
+local function afkSilence()
+    for _,conn in ipairs(afkGetConns()) do
+        if pcall(function() conn:Disable() end) then
+            afkSilenced[#afkSilenced+1]=conn
+        end
+    end
+end
+
+local function afkRestore()
+    local list=afkSilenced
+    if #list==0 then list=afkGetConns() end
+    for _,conn in ipairs(list) do
+        pcall(function() conn:Enable() end)
+    end
+    table.clear(afkSilenced)
+end
+
+local function afkFindUpvalues()
+    local out={}
+    if type(getgc)~="function" or type(debug)~="table" or type(debug.getupvalues)~="function" then return out end
+    local ok,result=pcall(getgc,false)
+    if not ok or type(result)~="table" then return out end
+    for _,fnObj in ipairs(result) do
+        if type(fnObj)=="function" and islclosure(fnObj) then
+            local ok2,src=pcall(debug.info,fnObj,"s")
+            if ok2 and type(src)=="string" and string.find(src,"AntiAFK",1,true) then
+                local ok3,ups=pcall(debug.getupvalues,fnObj)
+                if ok3 and type(ups)=="table" then
+                    for k,v in pairs(ups) do
+                        if typeof(v)=="Instance" and v.ClassName=="TeleportService" then
+                            out[#out+1]={Fn=fnObj,Index=k,Original=v}
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
+local function afkPatch()
+    for _,hit in ipairs(afkFindUpvalues()) do
+        local ok,val=pcall(debug.getupvalue,hit.Fn,hit.Index)
+        if ok and typeof(val)=="Instance" then
+            if pcall(debug.setupvalue,hit.Fn,hit.Index,afkDummy) then
+                afkUpvalueHits[#afkUpvalueHits+1]=hit
+            end
+        end
+    end
+end
+
+local function afkUnpatch()
+    for _,hit in ipairs(afkUpvalueHits) do
+        pcall(debug.setupvalue,hit.Fn,hit.Index,hit.Original)
+    end
+    table.clear(afkUpvalueHits)
+end
+
+local function afkEnable()
+    afkSilence()
+    if #afkUpvalueHits==0 then afkPatch() end
+end
+
+task.spawn(function()
+    while true do
+        if AntiAfkEnabled then
+            pcall(afkEnable)
+        end
+        task.wait(600)
+    end
+end)
+
+task.spawn(function()
+    task.wait(1)
+    if AntiAfkEnabled then pcall(afkEnable) end
+end)
+
 getgenv().Tungtung_BypassEnabled=true
-getgenv().Tungtung_AutoMove=false
 getgenv().Tungtung_AntiHit=false
 getgenv().Tungtung_BypassProximity=false
 getgenv().Tungtung_FixLag=false
+getgenv().Tungtung_AntiAfk=true
 
 pcall(function()
     if hookfunction and getrawmetatable then
@@ -943,7 +800,7 @@ local function ShowMainUI()
     fS.Color=Color3.fromRGB(150,80,255)
 
     local panel=Instance.new("Frame")
-    panel.Size=UDim2.fromOffset(300,310)
+    panel.Size=UDim2.fromOffset(300,358)
     panel.Position=UDim2.new(1,-315,0,15)
     panel.BackgroundColor3=Color3.fromRGB(12,12,16)
     panel.BorderSizePixel=0
@@ -1164,6 +1021,25 @@ local function ShowMainUI()
         return FixLagEnabled
     end)
 
+    makeRow(240,"Anti AFK",function() return AntiAfkEnabled end,function()
+        AntiAfkEnabled=not AntiAfkEnabled
+        getgenv().Tungtung_AntiAfk=AntiAfkEnabled
+        if AntiAfkEnabled then
+            pcall(afkEnable)
+        else
+            afkRestore()
+            afkUnpatch()
+        end
+        pcall(function()
+            StarterGui:SetCore("SendNotification",{
+                Title=NOTIF_NAME,
+                Text=AntiAfkEnabled and "Anti AFK ON" or "Anti AFK OFF",
+                Duration=2,
+            })
+        end)
+        return AntiAfkEnabled
+    end)
+
     local dragging,dragStart,startPos
     header.InputBegan:Connect(function(input)
         if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
@@ -1194,4 +1070,4 @@ end
 
 ShowMainUI()
 
-print("[Tungtung v3] Loaded")
+print("[Tungtung v3] Loaded — có Anti AFK")
