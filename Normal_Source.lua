@@ -1,4 +1,3 @@
--- [ 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players=game:GetService("Players")
@@ -12,7 +11,6 @@ local Workspace=game:GetService("Workspace")
 local Lighting=game:GetService("Lighting")
 local LP=Players.LocalPlayer
 local PlayerGui=LP:WaitForChild("PlayerGui")
-local Camera=Workspace.CurrentCamera
 
 local function GC()
     if gethui then local ok,h=pcall(gethui) if ok and h then return h end end
@@ -30,25 +28,21 @@ local POS_B=Vector3.new(543.79,70.57,-362.73)
 local MoveEnabled=false
 local IsMoving=false
 
-local antiGuardEnabled=false
-local antiGuardActive=false
-local antiGuardPending=false
+local AntiHitEnabled=false
+local IsAntiHitRunning=false
+local ANTI_HIT_SPEED=0.005
 
-local KROV_POINTS={
-    CFrame.new(4747.71,70.57,-335.25),
-    CFrame.new(3520.94,70.73,-343.74),
-    CFrame.new(2446.02,70.88,-351.18),
-    CFrame.new(1352.11,71.02,-358.75),
-    CFrame.new(544.49,71.13,-364.34),
+local TeleportPoints={
+    Vector3.new(500.62,241.28,-366.64),
+    Vector3.new(504.45,155.80,-366.35),
+    Vector3.new(508.30,70.28,-366.03),
+    Vector3.new(513.86,70.28,-366.25),
+    Vector3.new(519.43,70.28,-366.47),
+    Vector3.new(524.32,70.28,-366.59),
+    Vector3.new(529.22,70.28,-366.71),
+    Vector3.new(538.01,70.28,-365.55),
+    Vector3.new(546.80,70.28,-364.40)
 }
-
-local KRV_STEP_WAIT=0.02
-local KRV_HOLD_TIME=0.35
-local FLASH_DURATION=0.9
-
-local SAVED_JUMP_POWER=nil
-local SAVED_JUMP_HEIGHT=nil
-local CONTROLS_LOCKED=false
 
 local function getRoot()
     local char=LP.Character
@@ -73,6 +67,10 @@ local function hideJumpButtons(hide)
         end
     end
 end
+
+local SAVED_JUMP_POWER=nil
+local SAVED_JUMP_HEIGHT=nil
+local CONTROLS_LOCKED=false
 
 local function getControls()
     local ok,result=pcall(function()
@@ -199,559 +197,42 @@ local function runRoute()
     IsMoving=false
 end
 
-local function DoFullBlackFlash(duration)
-    duration=duration or FLASH_DURATION
-    local flash=Instance.new("ScreenGui")
-    flash.Name="TungTungFullBlack"
-    flash.ResetOnSpawn=false
-    flash.IgnoreGuiInset=true
-    flash.DisplayOrder=2147483646
-    pcall(function() flash.Parent=GC() end)
-    if not flash.Parent then flash.Parent=PlayerGui end
-
-    local frame=Instance.new("Frame")
-    frame.Size=UDim2.fromScale(1,1)
-    frame.Position=UDim2.fromScale(0,0)
-    frame.BackgroundColor3=Color3.fromRGB(0,0,0)
-    frame.BackgroundTransparency=0
-    frame.BorderSizePixel=0
-    frame.ZIndex=1
-    frame.Parent=flash
-
-    local title=Instance.new("TextLabel")
-    title.AnchorPoint=Vector2.new(0.5,0.5)
-    title.Position=UDim2.new(0.5,0,0.5,-50)
-    title.Size=UDim2.new(0,500,0,50)
-    title.BackgroundTransparency=1
-    title.Text="TUNGTUNG HUB"
-    title.TextColor3=Color3.fromRGB(255,255,255)
-    title.Font=Enum.Font.GothamBlack
-    title.TextSize=36
-    title.TextStrokeTransparency=0.2
-    title.TextStrokeColor3=Color3.fromRGB(0,0,0)
-    title.ZIndex=5
-    title.Parent=frame
-
-    local percent=Instance.new("TextLabel")
-    percent.AnchorPoint=Vector2.new(0.5,0.5)
-    percent.Position=UDim2.new(0.5,0,0.5,0)
-    percent.Size=UDim2.new(0,500,0,40)
-    percent.BackgroundTransparency=1
-    percent.Text="0%"
-    percent.TextColor3=Color3.fromRGB(150,100,255)
-    percent.Font=Enum.Font.Code
-    percent.TextSize=32
-    percent.TextStrokeTransparency=0.2
-    percent.TextStrokeColor3=Color3.fromRGB(0,0,0)
-    percent.ZIndex=5
-    percent.Parent=frame
-
-    local barBg=Instance.new("Frame")
-    barBg.AnchorPoint=Vector2.new(0.5,0.5)
-    barBg.Position=UDim2.new(0.5,0,0.5,50)
-    barBg.Size=UDim2.new(0,420,0,14)
-    barBg.BackgroundColor3=Color3.fromRGB(40,30,55)
-    barBg.BorderSizePixel=0
-    barBg.ZIndex=4
-    barBg.Parent=frame
-    local bgCorner=Instance.new("UICorner")
-    bgCorner.CornerRadius=UDim.new(1,0)
-    bgCorner.Parent=barBg
-
-    local barFill=Instance.new("Frame")
-    barFill.Size=UDim2.new(0,0,1,0)
-    barFill.BackgroundColor3=Color3.fromRGB(150,100,255)
-    barFill.BorderSizePixel=0
-    barFill.ZIndex=5
-    barFill.Parent=barBg
-    local fillCorner=Instance.new("UICorner")
-    fillCorner.CornerRadius=UDim.new(1,0)
-    fillCorner.Parent=barFill
-
-    local startTick=tick()
-    task.spawn(function()
-        while flash.Parent and (tick()-startTick)<duration do
-            local pct=math.clamp((tick()-startTick)/duration,0,1)
-            percent.Text=math.floor(pct*100+0.5).."%"
-            barFill.Size=UDim2.new(pct,0,1,0)
-            RunService.Heartbeat:Wait()
-        end
-        if flash.Parent then
-            percent.Text="100%"
-            barFill.Size=UDim2.new(1,0,1,0)
-        end
-    end)
-
-    task.delay(duration,function()
-        pcall(function() flash:Destroy() end)
-    end)
-end
-
-local function agEvade()
-    local char=LP.Character
-    local root=char and char:FindFirstChild("HumanoidRootPart")
-    local hum=char and char:FindFirstChildOfClass("Humanoid")
-    if not root or not hum or hum.Health<=0 then return end
-    antiGuardActive=true
-
-    local savedCamCFrame=Camera.CFrame
-    local savedCamType=Camera.CameraType
-    Camera.CameraType=Enum.CameraType.Scriptable
-    Camera.CFrame=savedCamCFrame
-
-    pcall(function() hum.BreakJointsOnDeath=false end)
-
-    for _,v in ipairs(char:GetDescendants()) do
-        if v:IsA("Motor6D") then
-            pcall(function() v.Enabled=true end)
-        end
-    end
-
-    root.AssemblyLinearVelocity=Vector3.zero
-    root.AssemblyAngularVelocity=Vector3.zero
-
-    for _,cf in ipairs(KROV_POINTS) do
-        if not char.Parent or hum.Health<=0 then break end
-        hum.PlatformStand=true
-        hum.Health=100
-        root.CFrame=cf
-        root.AssemblyLinearVelocity=Vector3.zero
-        root.AssemblyAngularVelocity=Vector3.zero
-        Camera.CFrame=savedCamCFrame
-        task.wait(KRV_STEP_WAIT)
-    end
-
-    local startHold=os.clock()
-    local holdConn
-    holdConn=RunService.Heartbeat:Connect(function()
-        if os.clock()-startHold>KRV_HOLD_TIME or not char.Parent then
-            if holdConn then holdConn:Disconnect() end
+local function TeleportRoute(character)
+    if not character then return end
+    local root=character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    IsAntiHitRunning=true
+    for _,pos in ipairs(TeleportPoints) do
+        if not AntiHitEnabled or not root.Parent then
+            IsAntiHitRunning=false
             return
         end
-        hum.Health=100
-        hum.PlatformStand=true
-        root.CFrame=KROV_POINTS[#KROV_POINTS]
-        root.AssemblyLinearVelocity=Vector3.zero
-        root.AssemblyAngularVelocity=Vector3.zero
-        Camera.CFrame=savedCamCFrame
-    end)
-
-    task.wait(KRV_HOLD_TIME)
-    if holdConn then pcall(function() holdConn:Disconnect() end) end
-
-    pcall(function() hum.PlatformStand=false end)
-    Camera.CameraType=savedCamType
-    Camera.CFrame=savedCamCFrame
-
-    antiGuardActive=false
-    antiGuardPending=false
+        root.CFrame=CFrame.new(pos)
+        task.wait(ANTI_HIT_SPEED)
+    end
+    IsAntiHitRunning=false
 end
 
 ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     if player~=LP then return end
-    if not antiGuardEnabled then
-        if MoveEnabled then
-            task.spawn(runRoute)
+    if AntiHitEnabled and not IsAntiHitRunning then
+        local char=LP.Character
+        if char then
+            task.spawn(function()
+                TeleportRoute(char)
+            end)
         end
-        return
     end
-    if antiGuardActive or antiGuardPending then return end
-    antiGuardPending=true
-
-    DoFullBlackFlash(FLASH_DURATION)
-
-    task.spawn(function()
-        task.wait(FLASH_DURATION)
-        if not antiGuardActive then
-            pcall(agEvade)
-        end
-    end)
-
     if MoveEnabled then
         task.spawn(function()
-            task.wait(FLASH_DURATION)
             local t0=os.clock()
-            while antiGuardActive and os.clock()-t0<10 do
+            while IsAntiHitRunning and os.clock()-t0<10 do
                 RunService.Heartbeat:Wait()
             end
             runRoute()
         end)
     end
 end)
-
-getgenv().SetAntiGuard=function(v)
-    antiGuardEnabled=v==true
-end
-
-local CONFIG_URL="https://raw.githubusercontent.com/tungtungshaher-oss/Script/refs/heads/main/Config"
-
-local ok,raw=pcall(function() return game:HttpGet(CONFIG_URL.."?v="..tick(),true) end)
-if not ok or not raw then warn("[CONFIG] fail") return end
-local fn=loadstring(raw) if not fn then return end
-local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
-
-local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v6.3"
-local NOTIF_NAME="Tungtung Hub"
-
-local MainGui=Instance.new("ScreenGui")
-MainGui.Name="TungTungIntro"
-MainGui.ResetOnSpawn=false
-MainGui.IgnoreGuiInset=true
-MainGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-MainGui.DisplayOrder=2147483647
-pcall(function() MainGui.Parent=GC() end)
-if not MainGui.Parent then MainGui.Parent=PlayerGui end
-
-local DarkOverlay=Instance.new("Frame")
-DarkOverlay.Size=UDim2.fromScale(1,1)
-DarkOverlay.BackgroundColor3=Color3.fromRGB(0,0,0)
-DarkOverlay.BackgroundTransparency=1
-DarkOverlay.BorderSizePixel=0
-DarkOverlay.ZIndex=99
-DarkOverlay.Parent=MainGui
-
-local Card=Instance.new("Frame")
-Card.AnchorPoint=Vector2.new(0.5,0.5)
-Card.Position=UDim2.fromScale(0.5,0.54)
-Card.Size=UDim2.fromOffset(340,200)
-Card.BackgroundColor3=Color3.fromRGB(14,14,16)
-Card.BackgroundTransparency=1
-Card.ClipsDescendants=true
-Card.ZIndex=100
-Card.Parent=MainGui
-
-local LoadingBgGradient=Instance.new("UIGradient")
-LoadingBgGradient.Color=ColorSequence.new({
-    ColorSequenceKeypoint.new(0.00,Color3.fromRGB(0,0,0)),
-    ColorSequenceKeypoint.new(0.28,Color3.fromRGB(0,0,0)),
-    ColorSequenceKeypoint.new(0.40,Color3.fromRGB(70,70,70)),
-    ColorSequenceKeypoint.new(0.46,Color3.fromRGB(255,255,255)),
-    ColorSequenceKeypoint.new(0.54,Color3.fromRGB(255,255,255)),
-    ColorSequenceKeypoint.new(0.60,Color3.fromRGB(70,70,70)),
-    ColorSequenceKeypoint.new(0.72,Color3.fromRGB(0,0,0)),
-    ColorSequenceKeypoint.new(1.00,Color3.fromRGB(0,0,0))
-})
-LoadingBgGradient.Rotation=0
-LoadingBgGradient.Offset=Vector2.new(1.35,0)
-LoadingBgGradient.Parent=Card
-
-task.spawn(function()
-    while MainGui.Parent and Card.Parent do
-        LoadingBgGradient.Offset=Vector2.new(1.35,0)
-        local sweep=TweenService:Create(LoadingBgGradient,TweenInfo.new(2.8,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut),{Offset=Vector2.new(-1.35,0)})
-        sweep:Play()
-        sweep.Completed:Wait()
-        LoadingBgGradient.Offset=Vector2.new(1.35,0)
-        task.wait(0.18)
-    end
-end)
-
-Instance.new("UICorner",Card).CornerRadius=UDim.new(0,14)
-
-local CardStroke=Instance.new("UIStroke")
-CardStroke.Color=Color3.fromRGB(255,255,255)
-CardStroke.Transparency=1
-CardStroke.Thickness=1.2
-CardStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
-CardStroke.Parent=Card
-
-local Logo=Instance.new("ImageLabel")
-Logo.AnchorPoint=Vector2.new(0.5,0)
-Logo.Position=UDim2.new(0.5,0,0.12,0)
-Logo.Size=UDim2.fromOffset(56,56)
-Logo.BackgroundTransparency=1
-Logo.Image=LOGO_ASSET
-Logo.ImageTransparency=1
-Logo.ScaleType=Enum.ScaleType.Fit
-Logo.ZIndex=101
-Logo.Parent=Card
-Instance.new("UICorner",Logo).CornerRadius=UDim.new(0,10)
-
-local Title=Instance.new("TextLabel")
-Title.AnchorPoint=Vector2.new(0.5,0)
-Title.Position=UDim2.new(0.5,0,0.43,0)
-Title.Size=UDim2.new(0.9,0,0,24)
-Title.BackgroundTransparency=1
-Title.Text="TUNGTUNG"
-Title.TextColor3=Color3.fromRGB(255,255,255)
-Title.TextTransparency=1
-Title.Font=Enum.Font.FredokaOne
-Title.TextSize=20
-Title.ZIndex=101
-Title.Parent=Card
-
-local DiscordText=Instance.new("TextLabel")
-DiscordText.AnchorPoint=Vector2.new(0.5,0)
-DiscordText.Position=UDim2.new(0.5,0,0.56,0)
-DiscordText.Size=UDim2.new(0.9,0,0,18)
-DiscordText.BackgroundTransparency=1
-DiscordText.Text=BRAND_NAME.." • "..SOCIAL_HANDLE
-DiscordText.TextColor3=Color3.fromRGB(160,160,165)
-DiscordText.TextTransparency=1
-DiscordText.Font=Enum.Font.FredokaOne
-DiscordText.TextSize=12
-DiscordText.ZIndex=101
-DiscordText.Parent=Card
-
-local ProgressBg=Instance.new("Frame")
-ProgressBg.AnchorPoint=Vector2.new(0.5,0)
-ProgressBg.Position=UDim2.new(0.5,0,0.76,0)
-ProgressBg.Size=UDim2.new(0.78,0,0,5)
-ProgressBg.BackgroundColor3=Color3.fromRGB(30,30,35)
-ProgressBg.BackgroundTransparency=1
-ProgressBg.BorderSizePixel=0
-ProgressBg.ZIndex=101
-ProgressBg.Parent=Card
-Instance.new("UICorner",ProgressBg).CornerRadius=UDim.new(1,0)
-
-local ProgressFill=Instance.new("Frame")
-ProgressFill.Position=UDim2.new(0,0,0,0)
-ProgressFill.Size=UDim2.new(0,0,1,0)
-ProgressFill.BackgroundColor3=Color3.fromRGB(255,255,255)
-ProgressFill.BackgroundTransparency=1
-ProgressFill.BorderSizePixel=0
-ProgressFill.ZIndex=102
-ProgressFill.Parent=ProgressBg
-Instance.new("UICorner",ProgressFill).CornerRadius=UDim.new(1,0)
-
-local Status=Instance.new("TextLabel")
-Status.AnchorPoint=Vector2.new(0.5,0)
-Status.Position=UDim2.new(0.5,0,0.84,0)
-Status.Size=UDim2.new(0.8,0,0,14)
-Status.BackgroundTransparency=1
-Status.Text="Initializing Tungtung Hub..."
-Status.TextColor3=Color3.fromRGB(120,120,125)
-Status.TextTransparency=1
-Status.Font=Enum.Font.Gotham
-Status.TextSize=11
-Status.ZIndex=101
-Status.Parent=Card
-
-local tweenFast=TweenInfo.new(0.35,Enum.EasingStyle.Quart,Enum.EasingDirection.Out)
-local tweenPop=TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out)
-
-TweenService:Create(DarkOverlay,tweenFast,{BackgroundTransparency=0.45}):Play()
-task.wait(0.07)
-
-TweenService:Create(Card,tweenPop,{Position=UDim2.fromScale(0.5,0.5),BackgroundTransparency=0.05}):Play()
-TweenService:Create(CardStroke,tweenFast,{Transparency=0.88}):Play()
-task.wait(0.15)
-
-TweenService:Create(Logo,tweenFast,{ImageTransparency=0}):Play()
-TweenService:Create(Title,tweenFast,{TextTransparency=0}):Play()
-TweenService:Create(DiscordText,tweenFast,{TextTransparency=0}):Play()
-TweenService:Create(ProgressBg,tweenFast,{BackgroundTransparency=0}):Play()
-TweenService:Create(ProgressFill,tweenFast,{BackgroundTransparency=0}):Play()
-TweenService:Create(Status,tweenFast,{TextTransparency=0}):Play()
-
-task.wait(0.25)
-
-Status.Text="Loading scripts & assets..."
-TweenService:Create(ProgressFill,TweenInfo.new(1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Size=UDim2.new(1,0,1,0)}):Play()
-
-task.wait(1.1)
-
-Status.Text="TUNGTUNG"
-Status.TextColor3=Color3.fromRGB(255,255,255)
-
-task.wait(0.7)
-
-local tweenOut=TweenInfo.new(0.4,Enum.EasingStyle.Quart,Enum.EasingDirection.In)
-
-TweenService:Create(Card,tweenOut,{Position=UDim2.fromScale(0.5,0.46),BackgroundTransparency=1}):Play()
-TweenService:Create(CardStroke,tweenOut,{Transparency=1}):Play()
-TweenService:Create(DarkOverlay,tweenOut,{BackgroundTransparency=1}):Play()
-TweenService:Create(Logo,tweenOut,{ImageTransparency=1}):Play()
-TweenService:Create(Title,tweenOut,{TextTransparency=1}):Play()
-TweenService:Create(DiscordText,tweenOut,{TextTransparency=1}):Play()
-TweenService:Create(ProgressBg,tweenOut,{BackgroundTransparency=1}):Play()
-TweenService:Create(ProgressFill,tweenOut,{BackgroundTransparency=1}):Play()
-TweenService:Create(Status,tweenOut,{TextTransparency=1}):Play()
-
-task.wait(0.45)
-
-MainGui:Destroy()
-
-getgenv().Tungtung_BypassEnabled=true
-getgenv().Tungtung_AutoMove=false
-getgenv().Tungtung_AntiGuard=false
-getgenv().Tungtung_BypassProximity=false
-getgenv().Tungtung_FixLag=false
-getgenv().Tungtung_AntiAfk=true
-
-pcall(function()
-    if hookfunction and getrawmetatable then
-        local mt=getrawmetatable(game)
-        if mt then
-            local oldNamecall=mt.__namecall
-            setreadonly(mt,false)
-            mt.__namecall=newcclosure(function(self,...)
-                local method=getnamecallmethod()
-                if method=="Kick" then return nil end
-                return oldNamecall(self,...)
-            end)
-            setreadonly(mt,true)
-        end
-    end
-end)
-
-task.spawn(function()
-    task.wait(5)
-    pcall(function()
-        for _,obj in ipairs(game:GetDescendants()) do
-            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                local name=string.lower(obj.Name)
-                if name:find("detect") or name:find("cheat") or name:find("kick") or name:find("ban") or name:find("report") or name:find("flag") then
-                    if getconnections then
-                        for _,conn in ipairs(getconnections(obj.OnClientEvent)) do
-                            pcall(function() conn:Disable() end)
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end)
-
-local FixLagEnabled=false
-local fixLagConns={}
-local fixLagSaved={}
-local fixLagDebounce=false
-local fixLagAddedConn=nil
-
-local function saveProp(obj,prop)
-    if not fixLagSaved[obj] then fixLagSaved[obj]={} end
-    if fixLagSaved[obj][prop]==nil then
-        fixLagSaved[obj][prop]=obj[prop]
-    end
-end
-
-local function clearVisualEffects()
-    pcall(function()
-        for _,obj in ipairs(Lighting:GetChildren()) do
-            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
-            or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                saveProp(obj,"Enabled")
-                obj.Enabled=false
-            end
-        end
-    end)
-end
-
-local function restoreVisualEffects()
-    pcall(function()
-        for _,obj in ipairs(Lighting:GetChildren()) do
-            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
-            or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                local saved=fixLagSaved[obj]
-                if saved and saved.Enabled~=nil then
-                    obj.Enabled=saved.Enabled
-                end
-            end
-        end
-    end)
-end
-
-local function optimizeObject(obj)
-    pcall(function()
-        if obj:IsA("BasePart") then
-            if obj.Material~=Enum.Material.Plastic and obj.Material~=Enum.Material.SmoothPlastic then
-                saveProp(obj,"Material")
-                obj.Material=Enum.Material.SmoothPlastic
-            end
-            if obj.Reflectance>0 then
-                saveProp(obj,"Reflectance")
-                obj.Reflectance=0
-            end
-            if obj.CastShadow then
-                saveProp(obj,"CastShadow")
-                obj.CastShadow=false
-            end
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            if obj.Transparency<1 then
-                saveProp(obj,"Transparency")
-                obj.Transparency=1
-            end
-        elseif obj:IsA("Light") then
-            if obj.Enabled then
-                saveProp(obj,"Enabled")
-                obj.Enabled=false
-            end
-        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-        or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
-            if obj.Enabled then
-                saveProp(obj,"Enabled")
-                obj.Enabled=false
-            end
-        end
-    end)
-end
-
-local function optimizeWorkspace()
-    if fixLagDebounce then return end
-    fixLagDebounce=true
-    task.spawn(function()
-        pcall(function()
-            saveProp(Workspace,"StreamingEnabled")
-            Workspace.StreamingEnabled=false
-        end)
-        local count=0
-        pcall(function()
-            for _,obj in ipairs(Workspace:GetDescendants()) do
-                count=count+1
-                optimizeObject(obj)
-                if count%500==0 then task.wait() end
-            end
-        end)
-        fixLagDebounce=false
-    end)
-end
-
-local function restoreWorkspace()
-    pcall(function()
-        for obj,props in pairs(fixLagSaved) do
-            if obj then
-                for prop,value in pairs(props) do
-                    pcall(function() obj[prop]=value end)
-                end
-            end
-        end
-    end)
-    table.clear(fixLagSaved)
-end
-
-local function fixLagStart()
-    clearVisualEffects()
-    optimizeWorkspace()
-    if not fixLagAddedConn then
-        fixLagAddedConn=Workspace.DescendantAdded:Connect(function(obj)
-            if not FixLagEnabled then return end
-            task.wait(0.05)
-            if not FixLagEnabled or not obj.Parent then return end
-            optimizeObject(obj)
-        end)
-    end
-    table.insert(fixLagConns,LP.CharacterAdded:Connect(function()
-        task.wait(1)
-        if FixLagEnabled then
-            clearVisualEffects()
-        end
-    end))
-end
-
-local function fixLagStop()
-    for _,c in ipairs(fixLagConns) do
-        pcall(function() c:Disconnect() end)
-    end
-    table.clear(fixLagConns)
-    if fixLagAddedConn then
-        fixLagAddedConn:Disconnect()
-        fixLagAddedConn=nil
-    end
-    restoreVisualEffects()
-    restoreWorkspace()
-end
 
 local BypassProximityEnabled=false
 local FAST_HOLD=0
@@ -1068,93 +549,374 @@ local function trapStop()
     table.clear(movedTraps)
 end
 
-local AntiAfkEnabled=true
-local afkSilenced={}
-local afkUpvalueHits={}
-local afkDummy=setmetatable({},{__index=function() return function() end end})
+local FixLagEnabled=false
+local fixLagConns={}
+local fixLagSaved={}
+local fixLagDebounce=false
+local fixLagAddedConn=nil
 
-local function afkGetConns()
-    if type(getconnections)~="function" then return {} end
-    local ok,result=pcall(getconnections,LP.Idled)
-    return ok and type(result)=="table" and result or {}
+local function saveProp(obj,prop)
+    if not fixLagSaved[obj] then fixLagSaved[obj]={} end
+    if fixLagSaved[obj][prop]==nil then
+        fixLagSaved[obj][prop]=obj[prop]
+    end
 end
 
-local function afkSilence()
-    for _,conn in ipairs(afkGetConns()) do
-        if pcall(function() conn:Disable() end) then
-            afkSilenced[#afkSilenced+1]=conn
+local function clearVisualEffects()
+    pcall(function()
+        for _,obj in ipairs(Lighting:GetChildren()) do
+            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
+            or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                saveProp(obj,"Enabled")
+                obj.Enabled=false
+            end
+        end
+    end)
+end
+
+local function restoreVisualEffects()
+    pcall(function()
+        for _,obj in ipairs(Lighting:GetChildren()) do
+            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
+            or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
+                local saved=fixLagSaved[obj]
+                if saved and saved.Enabled~=nil then
+                    obj.Enabled=saved.Enabled
+                end
+            end
+        end
+    end)
+end
+
+local function optimizeObject(obj)
+    pcall(function()
+        if obj:IsA("BasePart") then
+            if obj.Material~=Enum.Material.Plastic and obj.Material~=Enum.Material.SmoothPlastic then
+                saveProp(obj,"Material")
+                obj.Material=Enum.Material.SmoothPlastic
+            end
+            if obj.Reflectance>0 then
+                saveProp(obj,"Reflectance")
+                obj.Reflectance=0
+            end
+            if obj.CastShadow then
+                saveProp(obj,"CastShadow")
+                obj.CastShadow=false
+            end
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            if obj.Transparency<1 then
+                saveProp(obj,"Transparency")
+                obj.Transparency=1
+            end
+        elseif obj:IsA("Light") then
+            if obj.Enabled then
+                saveProp(obj,"Enabled")
+                obj.Enabled=false
+            end
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+        or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+            if obj.Enabled then
+                saveProp(obj,"Enabled")
+                obj.Enabled=false
+            end
+        end
+    end)
+end
+
+local function optimizeWorkspace()
+    if fixLagDebounce then return end
+    fixLagDebounce=true
+    task.spawn(function()
+        pcall(function()
+            saveProp(Workspace,"StreamingEnabled")
+            Workspace.StreamingEnabled=false
+        end)
+        local count=0
+        pcall(function()
+            for _,obj in ipairs(Workspace:GetDescendants()) do
+                count=count+1
+                optimizeObject(obj)
+                if count%500==0 then task.wait() end
+            end
+        end)
+        fixLagDebounce=false
+    end)
+end
+
+local function restoreWorkspace()
+    pcall(function()
+        for obj,props in pairs(fixLagSaved) do
+            if obj then
+                for prop,value in pairs(props) do
+                    pcall(function() obj[prop]=value end)
+                end
+            end
+        end
+    end)
+    table.clear(fixLagSaved)
+end
+
+local function fixLagStart()
+    clearVisualEffects()
+    optimizeWorkspace()
+    if not fixLagAddedConn then
+        fixLagAddedConn=Workspace.DescendantAdded:Connect(function(obj)
+            if not FixLagEnabled then return end
+            task.wait(0.05)
+            if not FixLagEnabled or not obj.Parent then return end
+            optimizeObject(obj)
+        end)
+    end
+    table.insert(fixLagConns,LP.CharacterAdded:Connect(function()
+        task.wait(1)
+        if FixLagEnabled then
+            clearVisualEffects()
+        end
+    end))
+end
+
+local function fixLagStop()
+    for _,c in ipairs(fixLagConns) do
+        pcall(function() c:Disconnect() end)
+    end
+    table.clear(fixLagConns)
+    if fixLagAddedConn then
+        fixLagAddedConn:Disconnect()
+        fixLagAddedConn=nil
+    end
+    restoreVisualEffects()
+    restoreWorkspace()
+end
+
+getgenv().Tungtung_BypassEnabled=true
+getgenv().Tungtung_AutoMove=false
+getgenv().Tungtung_AntiHit=false
+getgenv().Tungtung_BypassProximity=false
+getgenv().Tungtung_FixLag=false
+
+pcall(function()
+    if hookfunction and getrawmetatable then
+        local mt=getrawmetatable(game)
+        if mt then
+            local oldNamecall=mt.__namecall
+            setreadonly(mt,false)
+            mt.__namecall=newcclosure(function(self,...)
+                local method=getnamecallmethod()
+                if method=="Kick" then return nil end
+                return oldNamecall(self,...)
+            end)
+            setreadonly(mt,true)
         end
     end
-end
+end)
 
-local function afkRestore()
-    local list=afkSilenced
-    if #list==0 then list=afkGetConns() end
-    for _,conn in ipairs(list) do
-        pcall(function() conn:Enable() end)
-    end
-    table.clear(afkSilenced)
-end
-
-local function afkFindUpvalues()
-    local out={}
-    if type(getgc)~="function" or type(debug)~="table" or type(debug.getupvalues)~="function" then return out end
-    local ok,result=pcall(getgc,false)
-    if not ok or type(result)~="table" then return out end
-    for _,fnObj in ipairs(result) do
-        if type(fnObj)=="function" and islclosure(fnObj) then
-            local ok2,src=pcall(debug.info,fnObj,"s")
-            if ok2 and type(src)=="string" and string.find(src,"AntiAFK",1,true) then
-                local ok3,ups=pcall(debug.getupvalues,fnObj)
-                if ok3 and type(ups)=="table" then
-                    for k,v in pairs(ups) do
-                        if typeof(v)=="Instance" and v.ClassName=="TeleportService" then
-                            out[#out+1]={Fn=fnObj,Index=k,Original=v}
+task.spawn(function()
+    task.wait(5)
+    pcall(function()
+        for _,obj in ipairs(game:GetDescendants()) do
+            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                local name=string.lower(obj.Name)
+                if name:find("detect") or name:find("cheat") or name:find("kick") or name:find("ban") or name:find("report") or name:find("flag") then
+                    if getconnections then
+                        for _,conn in ipairs(getconnections(obj.OnClientEvent)) do
+                            pcall(function() conn:Disable() end)
                         end
                     end
                 end
             end
         end
-    end
-    return out
-end
+    end)
+end)
 
-local function afkPatch()
-    for _,hit in ipairs(afkFindUpvalues()) do
-        local ok,val=pcall(debug.getupvalue,hit.Fn,hit.Index)
-        if ok and typeof(val)=="Instance" then
-            if pcall(debug.setupvalue,hit.Fn,hit.Index,afkDummy) then
-                afkUpvalueHits[#afkUpvalueHits+1]=hit
-            end
-        end
-    end
-end
+local CONFIG_URL="https://raw.githubusercontent.com/tungtungshaher-oss/Script/refs/heads/main/Config"
 
-local function afkUnpatch()
-    for _,hit in ipairs(afkUpvalueHits) do
-        pcall(debug.setupvalue,hit.Fn,hit.Index,hit.Original)
-    end
-    table.clear(afkUpvalueHits)
-end
+local ok,raw=pcall(function() return game:HttpGet(CONFIG_URL.."?v="..tick(),true) end)
+if not ok or not raw then warn("[CONFIG] fail") return end
+local fn=loadstring(raw) if not fn then return end
+local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
-local function afkEnable()
-    afkSilence()
-    if #afkUpvalueHits==0 then afkPatch() end
-end
+local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
+local BRAND_NAME="Tungtung v3"
+local NOTIF_NAME="Tungtung Hub"
+
+local MainGui=Instance.new("ScreenGui")
+MainGui.Name="TungTungIntro"
+MainGui.ResetOnSpawn=false
+MainGui.IgnoreGuiInset=true
+MainGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+MainGui.DisplayOrder=2147483647
+pcall(function() MainGui.Parent=GC() end)
+if not MainGui.Parent then MainGui.Parent=PlayerGui end
+
+local DarkOverlay=Instance.new("Frame")
+DarkOverlay.Size=UDim2.fromScale(1,1)
+DarkOverlay.BackgroundColor3=Color3.fromRGB(0,0,0)
+DarkOverlay.BackgroundTransparency=1
+DarkOverlay.BorderSizePixel=0
+DarkOverlay.ZIndex=99
+DarkOverlay.Parent=MainGui
+
+local Card=Instance.new("Frame")
+Card.AnchorPoint=Vector2.new(0.5,0.5)
+Card.Position=UDim2.fromScale(0.5,0.54)
+Card.Size=UDim2.fromOffset(340,200)
+Card.BackgroundColor3=Color3.fromRGB(14,14,16)
+Card.BackgroundTransparency=1
+Card.ClipsDescendants=true
+Card.ZIndex=100
+Card.Parent=MainGui
+
+local LoadingBgGradient=Instance.new("UIGradient")
+LoadingBgGradient.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0.00,Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.28,Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(0.40,Color3.fromRGB(70,70,70)),
+    ColorSequenceKeypoint.new(0.46,Color3.fromRGB(255,255,255)),
+    ColorSequenceKeypoint.new(0.54,Color3.fromRGB(255,255,255)),
+    ColorSequenceKeypoint.new(0.60,Color3.fromRGB(70,70,70)),
+    ColorSequenceKeypoint.new(0.72,Color3.fromRGB(0,0,0)),
+    ColorSequenceKeypoint.new(1.00,Color3.fromRGB(0,0,0))
+})
+LoadingBgGradient.Rotation=0
+LoadingBgGradient.Offset=Vector2.new(1.35,0)
+LoadingBgGradient.Parent=Card
 
 task.spawn(function()
-    while true do
-        if AntiAfkEnabled then
-            pcall(afkEnable)
-        end
-        task.wait(600)
+    while MainGui.Parent and Card.Parent do
+        LoadingBgGradient.Offset=Vector2.new(1.35,0)
+        local sweep=TweenService:Create(LoadingBgGradient,TweenInfo.new(2.8,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut),{Offset=Vector2.new(-1.35,0)})
+        sweep:Play()
+        sweep.Completed:Wait()
+        LoadingBgGradient.Offset=Vector2.new(1.35,0)
+        task.wait(0.18)
     end
 end)
 
-task.spawn(function()
-    task.wait(1)
-    if AntiAfkEnabled then pcall(afkEnable) end
-end)
+Instance.new("UICorner",Card).CornerRadius=UDim.new(0,14)
+
+local CardStroke=Instance.new("UIStroke")
+CardStroke.Color=Color3.fromRGB(255,255,255)
+CardStroke.Transparency=1
+CardStroke.Thickness=1.2
+CardStroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+CardStroke.Parent=Card
+
+local Logo=Instance.new("ImageLabel")
+Logo.AnchorPoint=Vector2.new(0.5,0)
+Logo.Position=UDim2.new(0.5,0,0.12,0)
+Logo.Size=UDim2.fromOffset(56,56)
+Logo.BackgroundTransparency=1
+Logo.Image=LOGO_ASSET
+Logo.ImageTransparency=1
+Logo.ScaleType=Enum.ScaleType.Fit
+Logo.ZIndex=101
+Logo.Parent=Card
+Instance.new("UICorner",Logo).CornerRadius=UDim.new(0,10)
+
+local Title=Instance.new("TextLabel")
+Title.AnchorPoint=Vector2.new(0.5,0)
+Title.Position=UDim2.new(0.5,0,0.43,0)
+Title.Size=UDim2.new(0.9,0,0,24)
+Title.BackgroundTransparency=1
+Title.Text="TUNGTUNG"
+Title.TextColor3=Color3.fromRGB(255,255,255)
+Title.TextTransparency=1
+Title.Font=Enum.Font.FredokaOne
+Title.TextSize=20
+Title.ZIndex=101
+Title.Parent=Card
+
+local DiscordText=Instance.new("TextLabel")
+DiscordText.AnchorPoint=Vector2.new(0.5,0)
+DiscordText.Position=UDim2.new(0.5,0,0.56,0)
+DiscordText.Size=UDim2.new(0.9,0,0,18)
+DiscordText.BackgroundTransparency=1
+DiscordText.Text=BRAND_NAME.." • "..SOCIAL_HANDLE
+DiscordText.TextColor3=Color3.fromRGB(160,160,165)
+DiscordText.TextTransparency=1
+DiscordText.Font=Enum.Font.FredokaOne
+DiscordText.TextSize=12
+DiscordText.ZIndex=101
+DiscordText.Parent=Card
+
+local ProgressBg=Instance.new("Frame")
+ProgressBg.AnchorPoint=Vector2.new(0.5,0)
+ProgressBg.Position=UDim2.new(0.5,0,0.76,0)
+ProgressBg.Size=UDim2.new(0.78,0,0,5)
+ProgressBg.BackgroundColor3=Color3.fromRGB(30,30,35)
+ProgressBg.BackgroundTransparency=1
+ProgressBg.BorderSizePixel=0
+ProgressBg.ZIndex=101
+ProgressBg.Parent=Card
+Instance.new("UICorner",ProgressBg).CornerRadius=UDim.new(1,0)
+
+local ProgressFill=Instance.new("Frame")
+ProgressFill.Position=UDim2.new(0,0,0,0)
+ProgressFill.Size=UDim2.new(0,0,1,0)
+ProgressFill.BackgroundColor3=Color3.fromRGB(255,255,255)
+ProgressFill.BackgroundTransparency=1
+ProgressFill.BorderSizePixel=0
+ProgressFill.ZIndex=102
+ProgressFill.Parent=ProgressBg
+Instance.new("UICorner",ProgressFill).CornerRadius=UDim.new(1,0)
+
+local Status=Instance.new("TextLabel")
+Status.AnchorPoint=Vector2.new(0.5,0)
+Status.Position=UDim2.new(0.5,0,0.84,0)
+Status.Size=UDim2.new(0.8,0,0,14)
+Status.BackgroundTransparency=1
+Status.Text="Initializing Tungtung Hub..."
+Status.TextColor3=Color3.fromRGB(120,120,125)
+Status.TextTransparency=1
+Status.Font=Enum.Font.Gotham
+Status.TextSize=11
+Status.ZIndex=101
+Status.Parent=Card
+
+local tweenFast=TweenInfo.new(0.35,Enum.EasingStyle.Quart,Enum.EasingDirection.Out)
+local tweenPop=TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out)
+
+TweenService:Create(DarkOverlay,tweenFast,{BackgroundTransparency=0.45}):Play()
+task.wait(0.07)
+
+TweenService:Create(Card,tweenPop,{Position=UDim2.fromScale(0.5,0.5),BackgroundTransparency=0.05}):Play()
+TweenService:Create(CardStroke,tweenFast,{Transparency=0.88}):Play()
+task.wait(0.15)
+
+TweenService:Create(Logo,tweenFast,{ImageTransparency=0}):Play()
+TweenService:Create(Title,tweenFast,{TextTransparency=0}):Play()
+TweenService:Create(DiscordText,tweenFast,{TextTransparency=0}):Play()
+TweenService:Create(ProgressBg,tweenFast,{BackgroundTransparency=0}):Play()
+TweenService:Create(ProgressFill,tweenFast,{BackgroundTransparency=0}):Play()
+TweenService:Create(Status,tweenFast,{TextTransparency=0}):Play()
+
+task.wait(0.25)
+
+Status.Text="Loading scripts & assets..."
+TweenService:Create(ProgressFill,TweenInfo.new(1.1,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{Size=UDim2.new(1,0,1,0)}):Play()
+
+task.wait(1.1)
+
+Status.Text="TUNGTUNG"
+Status.TextColor3=Color3.fromRGB(255,255,255)
+
+task.wait(0.7)
+
+local tweenOut=TweenInfo.new(0.4,Enum.EasingStyle.Quart,Enum.EasingDirection.In)
+
+TweenService:Create(Card,tweenOut,{Position=UDim2.fromScale(0.5,0.46),BackgroundTransparency=1}):Play()
+TweenService:Create(CardStroke,tweenOut,{Transparency=1}):Play()
+TweenService:Create(DarkOverlay,tweenOut,{BackgroundTransparency=1}):Play()
+TweenService:Create(Logo,tweenOut,{ImageTransparency=1}):Play()
+TweenService:Create(Title,tweenOut,{TextTransparency=1}):Play()
+TweenService:Create(DiscordText,tweenOut,{TextTransparency=1}):Play()
+TweenService:Create(ProgressBg,tweenOut,{BackgroundTransparency=1}):Play()
+TweenService:Create(ProgressFill,tweenOut,{BackgroundTransparency=1}):Play()
+TweenService:Create(Status,tweenOut,{TextTransparency=1}):Play()
+
+task.wait(0.45)
+
+MainGui:Destroy()
 
 local function ShowMainUI()
     local ScreenGui=Instance.new("ScreenGui")
@@ -1167,8 +929,8 @@ local function ShowMainUI()
     if not ScreenGui.Parent then ScreenGui.Parent=PlayerGui end
 
     local floatBtn=Instance.new("ImageButton")
-    floatBtn.Size=UDim2.fromOffset(40,40)
-    floatBtn.Position=UDim2.new(0,12,0,100)
+    floatBtn.Size=UDim2.fromOffset(48,48)
+    floatBtn.Position=UDim2.new(0,15,0,110)
     floatBtn.BackgroundColor3=Color3.fromRGB(20,20,25)
     floatBtn.BorderSizePixel=0
     floatBtn.ScaleType=Enum.ScaleType.Fit
@@ -1177,17 +939,17 @@ local function ShowMainUI()
     floatBtn.Parent=ScreenGui
     Instance.new("UICorner",floatBtn).CornerRadius=UDim.new(1,0)
     local fS=Instance.new("UIStroke",floatBtn)
-    fS.Thickness=1.5
+    fS.Thickness=2
     fS.Color=Color3.fromRGB(150,80,255)
 
     local panel=Instance.new("Frame")
-    panel.Size=UDim2.fromOffset(240,330)
-    panel.Position=UDim2.new(1,-255,0,12)
+    panel.Size=UDim2.fromOffset(300,310)
+    panel.Position=UDim2.new(1,-315,0,15)
     panel.BackgroundColor3=Color3.fromRGB(12,12,16)
     panel.BorderSizePixel=0
     panel.ZIndex=5000
     panel.Parent=ScreenGui
-    Instance.new("UICorner",panel).CornerRadius=UDim.new(0,10)
+    Instance.new("UICorner",panel).CornerRadius=UDim.new(0,12)
     local pG=Instance.new("UIGradient",panel)
     pG.Rotation=135
     pG.Color=ColorSequence.new{
@@ -1195,18 +957,18 @@ local function ShowMainUI()
         ColorSequenceKeypoint.new(1,Color3.fromRGB(10,8,18))
     }
     local pS=Instance.new("UIStroke",panel)
-    pS.Thickness=1.2
+    pS.Thickness=1.5
     pS.Color=Color3.fromRGB(130,60,255)
 
     local header=Instance.new("Frame")
-    header.Size=UDim2.new(1,0,0,36)
+    header.Size=UDim2.new(1,0,0,48)
     header.BackgroundTransparency=1
     header.ZIndex=5001
     header.Parent=panel
 
     local logo=Instance.new("ImageLabel")
-    logo.Size=UDim2.fromOffset(24,24)
-    logo.Position=UDim2.new(0,10,0,6)
+    logo.Size=UDim2.fromOffset(32,32)
+    logo.Position=UDim2.new(0,12,0,8)
     logo.BackgroundTransparency=1
     logo.ScaleType=Enum.ScaleType.Fit
     logo.Image=LOGO_ASSET
@@ -1214,13 +976,13 @@ local function ShowMainUI()
     logo.Parent=header
 
     local title=Instance.new("TextLabel")
-    title.Size=UDim2.new(1,-100,0,16)
-    title.Position=UDim2.new(0,42,0,6)
+    title.Size=UDim2.new(1,-140,0,20)
+    title.Position=UDim2.new(0,52,0,8)
     title.BackgroundTransparency=1
     title.Text=BRAND_NAME
     title.TextColor3=Color3.fromRGB(240,220,255)
     title.Font=Enum.Font.GothamBlack
-    title.TextSize=12
+    title.TextSize=15
     title.TextXAlignment=Enum.TextXAlignment.Left
     title.ZIndex=5002
     title.Parent=header
@@ -1231,33 +993,33 @@ local function ShowMainUI()
     }
 
     local sub=Instance.new("TextLabel")
-    sub.Size=UDim2.new(1,-50,0,12)
-    sub.Position=UDim2.new(0,42,0,22)
+    sub.Size=UDim2.new(1,-60,0,14)
+    sub.Position=UDim2.new(0,52,0,28)
     sub.BackgroundTransparency=1
     sub.Text=SOCIAL_HANDLE
     sub.TextColor3=Color3.fromRGB(140,130,170)
     sub.Font=Enum.Font.GothamMedium
-    sub.TextSize=9
+    sub.TextSize=10
     sub.TextXAlignment=Enum.TextXAlignment.Left
     sub.ZIndex=5002
     sub.Parent=header
 
     local content=Instance.new("Frame")
-    content.Size=UDim2.new(1,-14,1,-44)
-    content.Position=UDim2.new(0,7,0,38)
+    content.Size=UDim2.new(1,-20,1,-58)
+    content.Position=UDim2.new(0,10,0,50)
     content.BackgroundTransparency=1
     content.ZIndex=5001
     content.Parent=panel
 
     local function makeRow(y,labelText,getState,onToggle)
         local row=Instance.new("Frame")
-        row.Size=UDim2.new(1,0,0,36)
+        row.Size=UDim2.new(1,0,0,44)
         row.Position=UDim2.new(0,0,0,y)
         row.BackgroundColor3=Color3.fromRGB(18,18,24)
         row.BorderSizePixel=0
         row.ZIndex=5002
         row.Parent=content
-        Instance.new("UICorner",row).CornerRadius=UDim.new(0,8)
+        Instance.new("UICorner",row).CornerRadius=UDim.new(0,10)
         local rG=Instance.new("UIGradient",row)
         rG.Color=ColorSequence.new{
             ColorSequenceKeypoint.new(0,Color3.fromRGB(25,20,40)),
@@ -1268,28 +1030,28 @@ local function ShowMainUI()
         rS.Color=Color3.fromRGB(60,40,100)
 
         local lbl=Instance.new("TextLabel")
-        lbl.Size=UDim2.new(1,-60,1,0)
-        lbl.Position=UDim2.new(0,10,0,0)
+        lbl.Size=UDim2.new(1,-80,1,0)
+        lbl.Position=UDim2.new(0,14,0,0)
         lbl.BackgroundTransparency=1
         lbl.Text=labelText
         lbl.TextColor3=Color3.fromRGB(240,240,255)
         lbl.Font=Enum.Font.GothamBold
-        lbl.TextSize=11
+        lbl.TextSize=12
         lbl.TextXAlignment=Enum.TextXAlignment.Left
         lbl.ZIndex=5003
         lbl.Parent=row
 
         local track=Instance.new("Frame")
-        track.Size=UDim2.fromOffset(38,20)
-        track.Position=UDim2.new(1,-48,0.5,-10)
+        track.Size=UDim2.fromOffset(48,24)
+        track.Position=UDim2.new(1,-60,0.5,-12)
         track.BackgroundColor3=getState() and Color3.fromRGB(130,80,255) or Color3.fromRGB(45,45,60)
         track.ZIndex=5003
         track.Parent=row
         Instance.new("UICorner",track).CornerRadius=UDim.new(1,0)
 
         local knob=Instance.new("Frame")
-        knob.Size=UDim2.fromOffset(14,14)
-        knob.Position=getState() and UDim2.new(1,-17,0.5,-7) or UDim2.new(0,3,0.5,-7)
+        knob.Size=UDim2.fromOffset(18,18)
+        knob.Position=getState() and UDim2.new(1,-21,0.5,-9) or UDim2.new(0,3,0.5,-9)
         knob.BackgroundColor3=getState() and Color3.fromRGB(255,255,255) or Color3.fromRGB(200,200,220)
         knob.ZIndex=5004
         knob.Parent=track
@@ -1306,42 +1068,28 @@ local function ShowMainUI()
             local isOn=onToggle()
             if isOn then
                 TweenService:Create(track,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(130,80,255)}):Play()
-                TweenService:Create(knob,TweenInfo.new(.2),{Position=UDim2.new(1,-17,0.5,-7),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play()
+                TweenService:Create(knob,TweenInfo.new(.2),{Position=UDim2.new(1,-21,0.5,-9),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play()
             else
                 TweenService:Create(track,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()
-                TweenService:Create(knob,TweenInfo.new(.2),{Position=UDim2.new(0,3,0.5,-7),BackgroundColor3=Color3.fromRGB(200,200,220)}):Play()
+                TweenService:Create(knob,TweenInfo.new(.2),{Position=UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.fromRGB(200,200,220)}):Play()
             end
         end)
     end
 
-    makeRow(0,"Anti Guard",function() return antiGuardEnabled end,function()
-        antiGuardEnabled=not antiGuardEnabled
-        getgenv().Tungtung_AntiGuard=antiGuardEnabled
-        pcall(function() getgenv().SetAntiGuard(antiGuardEnabled) end)
+    makeRow(0,"Super Anti Hit",function() return AntiHitEnabled end,function()
+        AntiHitEnabled=not AntiHitEnabled
+        getgenv().Tungtung_AntiHit=AntiHitEnabled
         pcall(function()
             StarterGui:SetCore("SendNotification",{
                 Title=NOTIF_NAME,
-                Text=antiGuardEnabled and "Anti Guard ON" or "Anti Guard OFF",
+                Text=AntiHitEnabled and "Anti-Hit ON" or "Anti-Hit OFF",
                 Duration=2,
             })
         end)
-        return antiGuardEnabled
+        return AntiHitEnabled
     end)
 
-    makeRow(40,"Auto Move (Proxi)",function() return MoveEnabled end,function()
-        MoveEnabled=not MoveEnabled
-        getgenv().Tungtung_AutoMove=MoveEnabled
-        pcall(function()
-            StarterGui:SetCore("SendNotification",{
-                Title=NOTIF_NAME,
-                Text=MoveEnabled and "Auto Move ON" or "Auto Move OFF",
-                Duration=2,
-            })
-        end)
-        return MoveEnabled
-    end)
-
-    makeRow(80,"Bypass Proximity",function() return BypassProximityEnabled end,function()
+    makeRow(48,"Bypass Proximity",function() return BypassProximityEnabled end,function()
         BypassProximityEnabled=not BypassProximityEnabled
         getgenv().Tungtung_BypassProximity=BypassProximityEnabled
         if BypassProximityEnabled then
@@ -1359,7 +1107,7 @@ local function ShowMainUI()
         return BypassProximityEnabled
     end)
 
-    makeRow(120,"Anti Ragdoll",function() return AntiRagdollEnabled end,function()
+    makeRow(96,"Anti Ragdoll",function() return AntiRagdollEnabled end,function()
         AntiRagdollEnabled=not AntiRagdollEnabled
         if AntiRagdollEnabled then
             arStart()
@@ -1381,7 +1129,7 @@ local function ShowMainUI()
         return AntiRagdollEnabled
     end)
 
-    makeRow(160,"Trap Cleaner",function() return TrapCleanerEnabled end,function()
+    makeRow(144,"Trap Cleaner",function() return TrapCleanerEnabled end,function()
         TrapCleanerEnabled=not TrapCleanerEnabled
         if TrapCleanerEnabled then
             trapStart()
@@ -1398,7 +1146,7 @@ local function ShowMainUI()
         return TrapCleanerEnabled
     end)
 
-    makeRow(200,"Fix Lag",function() return FixLagEnabled end,function()
+    makeRow(192,"Fix Lag",function() return FixLagEnabled end,function()
         FixLagEnabled=not FixLagEnabled
         getgenv().Tungtung_FixLag=FixLagEnabled
         if FixLagEnabled then
@@ -1414,25 +1162,6 @@ local function ShowMainUI()
             })
         end)
         return FixLagEnabled
-    end)
-
-    makeRow(240,"Anti AFK",function() return AntiAfkEnabled end,function()
-        AntiAfkEnabled=not AntiAfkEnabled
-        getgenv().Tungtung_AntiAfk=AntiAfkEnabled
-        if AntiAfkEnabled then
-            pcall(afkEnable)
-        else
-            afkRestore()
-            afkUnpatch()
-        end
-        pcall(function()
-            StarterGui:SetCore("SendNotification",{
-                Title=NOTIF_NAME,
-                Text=AntiAfkEnabled and "Anti AFK ON" or "Anti AFK OFF",
-                Duration=2,
-            })
-        end)
-        return AntiAfkEnabled
     end)
 
     local dragging,dragStart,startPos
@@ -1464,4 +1193,5 @@ local function ShowMainUI()
 end
 
 ShowMainUI()
-]
+
+print("[Tungtung v3] Loaded")
