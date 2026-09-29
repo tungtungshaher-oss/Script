@@ -30,7 +30,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v5"
+local BRAND_NAME="Tungtung v5.2"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
@@ -236,7 +236,7 @@ FlashLabel.AnchorPoint=Vector2.new(0.5,0.5)
 FlashLabel.Position=UDim2.new(0.5,0,0.5,0)
 FlashLabel.Size=UDim2.new(0,400,0,50)
 FlashLabel.BackgroundTransparency=1
-FlashLabel.Text="TUNGTUNG v5 LOADING..."
+FlashLabel.Text="TUNGTUNG v5.2 LOADING..."
 FlashLabel.TextColor3=Color3.fromRGB(255,255,255)
 FlashLabel.TextSize=22
 FlashLabel.Font=Enum.Font.GothamBlack
@@ -358,9 +358,6 @@ local fixLagConns={}
 local fixLagSaved={}
 local fixLagDebounce=false
 local fixLagAddedConn=nil
-local fixLagHeartbeat=nil
-local fixLagAccum=0
-local FIX_LAG_INTERVAL=1
 
 local function saveProp(obj,prop)
     if not fixLagSaved[obj] then fixLagSaved[obj]={} end
@@ -463,30 +460,8 @@ local function restoreWorkspace()
     table.clear(fixLagSaved)
 end
 
-local function applyQualitySettings()
-    pcall(function()
-        settings().Rendering.QualityLevel=Enum.QualityLevel.Level01
-    end)
-    pcall(function()
-        for _,obj in ipairs(Lighting:GetChildren()) do
-            if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
-            or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                saveProp(obj,"Enabled")
-                obj.Enabled=false
-            end
-        end
-    end)
-    pcall(function()
-        Lighting.GlobalShadows=false
-        Lighting.FogEnd=100000
-        Lighting.Brightness=1
-        Lighting.EnvironmentDiffuseScale=0
-        Lighting.EnvironmentSpecularScale=0
-    end)
-end
-
 local function fixLagStart()
-    applyQualitySettings()
+    clearVisualEffects()
     optimizeWorkspace()
     if not fixLagAddedConn then
         fixLagAddedConn=Workspace.DescendantAdded:Connect(function(obj)
@@ -496,33 +471,10 @@ local function fixLagStart()
             optimizeObject(obj)
         end)
     end
-    if not fixLagHeartbeat then
-        fixLagHeartbeat=RunService.Heartbeat:Connect(function(dt)
-            if not FixLagEnabled then return end
-            fixLagAccum=fixLagAccum+dt
-            if fixLagAccum>=FIX_LAG_INTERVAL then
-                fixLagAccum=0
-                pcall(function()
-                    for _,obj in ipairs(Lighting:GetChildren()) do
-                        if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
-                        or obj:IsA("SunRaysEffect") or obj:IsA("DepthOfFieldEffect") then
-                            if obj.Enabled then
-                                saveProp(obj,"Enabled")
-                                obj.Enabled=false
-                            end
-                        end
-                    end
-                end)
-                pcall(function()
-                    Lighting.GlobalShadows=false
-                end)
-            end
-        end)
-    end
     table.insert(fixLagConns,LP.CharacterAdded:Connect(function()
         task.wait(1)
         if FixLagEnabled then
-            applyQualitySettings()
+            clearVisualEffects()
         end
     end))
 end
@@ -536,21 +488,13 @@ local function fixLagStop()
         fixLagAddedConn:Disconnect()
         fixLagAddedConn=nil
     end
-    if fixLagHeartbeat then
-        fixLagHeartbeat:Disconnect()
-        fixLagHeartbeat=nil
-    end
-    fixLagAccum=0
     restoreVisualEffects()
     restoreWorkspace()
-    pcall(function()
-        settings().Rendering.QualityLevel=Enum.QualityLevel.Automatic
-    end)
 end
 
 local AntiHitEnabled=false
 local IsAntiHitRunning=false
-local ANTI_HIT_SPEED=0.005
+local ANTI_HIT_SPEED=0.001
 
 local TeleportPoints={
     Vector3.new(500.62,241.28,-366.64),
@@ -569,12 +513,12 @@ local function TeleportRoute(character)
     local root=character:FindFirstChild("HumanoidRootPart")
     if not root then return end
     IsAntiHitRunning=true
-    for _,position in ipairs(TeleportPoints) do
+    for _,pos in ipairs(TeleportPoints) do
         if not AntiHitEnabled or not root.Parent then
             IsAntiHitRunning=false
             return
         end
-        root.CFrame=CFrame.new(position)
+        root.CFrame=CFrame.new(pos)
         task.wait(ANTI_HIT_SPEED)
     end
     IsAntiHitRunning=false
@@ -583,11 +527,11 @@ end
 ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     if player~=LP then return end
     if not AntiHitEnabled or IsAntiHitRunning then return end
-    local character=LP.Character
-    if not character then return end
+    local char=LP.Character
+    if not char then return end
     DoTeleFlash()
     task.spawn(function()
-        TeleportRoute(character)
+        TeleportRoute(char)
     end)
 end)
 
