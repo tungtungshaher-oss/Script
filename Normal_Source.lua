@@ -30,7 +30,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v5.4 Fix Anti Hit"
+local BRAND_NAME="Tungtung v5.5 bá khí"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
@@ -171,7 +171,7 @@ local tweenFast=TweenInfo.new(0.35,Enum.EasingStyle.Quart,Enum.EasingDirection.O
 local tweenPop=TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out)
 
 TweenService:Create(DarkOverlay,tweenFast,{BackgroundTransparency=0.45}):Play()
-task.wait(0.05)
+task.wait(0.07)
 
 TweenService:Create(Card,tweenPop,{Position=UDim2.fromScale(0.5,0.5),BackgroundTransparency=0.05}):Play()
 TweenService:Create(CardStroke,tweenFast,{Transparency=0.88}):Play()
