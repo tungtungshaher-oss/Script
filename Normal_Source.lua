@@ -11,13 +11,14 @@ local Workspace=game:GetService("Workspace")
 local Lighting=game:GetService("Lighting")
 local LP=Players.LocalPlayer
 local PlayerGui=LP:WaitForChild("PlayerGui")
+local Camera=Workspace.CurrentCamera
 
 local function GC()
     if gethui then local ok,h=pcall(gethui) if ok and h then return h end end
     return CoreGui or PlayerGui
 end
 
-for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_Ended","TungTungLoading","TungTung_TeleFlash","TungTungIntro","TungTungPosTracker","TungTungAntiGuardCfg"}) do
+for _,n in ipairs({"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_Ended","TungTungLoading","TungTung_TeleFlash","TungTungIntro","TungTungPosTracker","TungTungAntiGuardCfg","TungTungFullBlack"}) do
     pcall(function() if PlayerGui:FindFirstChild(n) then PlayerGui[n]:Destroy() end end)
     pcall(function() if CoreGui:FindFirstChild(n) then CoreGui[n]:Destroy() end end)
 end
@@ -30,32 +31,23 @@ local IsMoving=false
 
 local antiGuardEnabled=false
 local antiGuardActive=false
-local antiGuardDisguise=nil
 local antiGuardPending=false
 
-local FRAME_WAIT=1
-
-local antiGuardCfg={
-    Step1At=0.1,
-    Step2At=0.33,
-    Step3At=0.56,
-    Step4At=0.75,
-    ReleaseAt=0.8,
-    OffsetX=-90,
-    OffsetZ=-35,
-    Height=45,
-    Limp=true,
+local KROV_POINTS={
+    CFrame.new(4747.71,70.57,-335.25),
+    CFrame.new(3520.94,70.73,-343.74),
+    CFrame.new(2446.02,70.88,-351.18),
+    CFrame.new(1352.11,71.02,-358.75),
+    CFrame.new(544.49,71.13,-364.34),
 }
+
+local KRV_STEP_WAIT=0.02
+local KRV_HOLD_TIME=0.35
+local FLASH_DURATION=0.9
 
 local SAVED_JUMP_POWER=nil
 local SAVED_JUMP_HEIGHT=nil
 local CONTROLS_LOCKED=false
-
-local agPaths={
-    {Path={"GearGiver_Slap","Podium"},Offset=Vector3.new(-16.415,21.072,-6.106)},
-    {Path={"World","Machines","RiftMachine","Rift","Meshes/VoidPortal_Cube.003"},Offset=Vector3.new(-26.776,1.75,18.665)},
-    {Path={"__OBJECTS","Machines","RiftMachine","Rift","Meshes/VoidPortal_Cube.003"},Offset=Vector3.new(-26.776,1.75,18.665)},
-}
 
 local function getRoot()
     local char=LP.Character
@@ -206,156 +198,92 @@ local function runRoute()
     IsMoving=false
 end
 
-local function agRandName()
-    local t={}
-    for i=1,math.random(10,16) do
-        t[i]=string.char(math.random(97,122))
-    end
-    return table.concat(t)
-end
+local function DoFullBlackFlash(duration)
+    duration=duration or FLASH_DURATION
+    local flash=Instance.new("ScreenGui")
+    flash.Name="TungTungFullBlack"
+    flash.ResetOnSpawn=false
+    flash.IgnoreGuiInset=true
+    flash.DisplayOrder=2147483646
+    pcall(function() flash.Parent=GC() end)
+    if not flash.Parent then flash.Parent=PlayerGui end
 
-local function agFindCarrier()
-    local lp=LP
-    if not lp then return nil end
-    for _,child in ipairs(Workspace:GetChildren()) do
-        if child:IsA("Model") and child:FindFirstChild("Hitbox") then
-            for _,descendant in ipairs(child:GetDescendants()) do
-                if descendant:IsA("JointInstance") or descendant:IsA("WeldConstraint") or descendant:IsA("RigidConstraint") then
-                    local ok,p0,p1=pcall(function()
-                        return descendant.Part0,descendant.Part1
-                    end)
-                    if ok and (p0==lp or p1==lp) then
-                        return child
-                    end
-                end
-            end
-        end
-    end
-    return nil
-end
+    local frame=Instance.new("Frame")
+    frame.Size=UDim2.fromScale(1,1)
+    frame.Position=UDim2.fromScale(0,0)
+    frame.BackgroundColor3=Color3.fromRGB(0,0,0)
+    frame.BackgroundTransparency=0
+    frame.BorderSizePixel=0
+    frame.ZIndex=1
+    frame.Parent=flash
 
-local function agCloneChar(char,parent)
-    local saved={}
-    for _,descendant in ipairs(char:GetDescendants()) do
-        saved[descendant]=descendant.Archivable
-        pcall(function() descendant.Archivable=true end)
-    end
-    local a=char.Archivable
-    char.Archivable=true
-    local ok,result=pcall(function() return char:Clone() end)
-    char.Archivable=a
-    for k,v in pairs(saved) do
-        pcall(function() k.Archivable=v end)
-    end
-    if not ok or not result then return nil end
-    result.Name=agRandName()
-    for _,descendant in ipairs(result:GetDescendants()) do
-        if descendant:IsA("LuaSourceContainer") or descendant:IsA("Sound") or descendant:IsA("ForceField")
-        or descendant:IsA("JointInstance") or descendant:IsA("Constraint") or descendant:IsA("WeldConstraint")
-        or descendant:IsA("BodyMover") or descendant:IsA("ProximityPrompt") or descendant:IsA("BillboardGui") then
-            pcall(function() descendant:Destroy() end)
-        elseif descendant:IsA("BasePart") then
-            descendant.Anchored=true
-            descendant.CanCollide=false
-            descendant.CanQuery=false
-            descendant.CanTouch=false
-        elseif descendant:IsA("Humanoid") then
-            descendant.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
-            descendant.HealthDisplayType=Enum.HumanoidHealthDisplayType.AlwaysOff
-        end
-    end
-    result.Parent=parent
-    return result
-end
+    local title=Instance.new("TextLabel")
+    title.AnchorPoint=Vector2.new(0.5,0.5)
+    title.Position=UDim2.new(0.5,0,0.5,-50)
+    title.Size=UDim2.new(0,500,0,50)
+    title.BackgroundTransparency=1
+    title.Text="TUNGTUNG HUB"
+    title.TextColor3=Color3.fromRGB(255,255,255)
+    title.Font=Enum.Font.GothamBlack
+    title.TextSize=36
+    title.TextStrokeTransparency=0.2
+    title.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    title.ZIndex=5
+    title.Parent=frame
 
-local function agDisguiseOn(char)
-    local cam=Workspace.CurrentCamera
-    if not char or not cam or antiGuardDisguise then return end
-    local d={Camera=cam,CameraType=cam.CameraType,CameraCFrame=cam.CFrame,Copies={},Hidden={}}
-    antiGuardDisguise=d
-    local chars={char}
-    local ok,carrier=pcall(agFindCarrier)
-    if ok and carrier then chars[#chars+1]=carrier end
-    for _,c in ipairs(chars) do
-        for _,descendant in ipairs(c:GetDescendants()) do
-            if descendant:IsA("BasePart") or descendant:IsA("Decal") or descendant:IsA("Texture") then
-                d.Hidden[#d.Hidden+1]=descendant
-            end
-        end
-    end
-    local function apply()
-        for _,h in ipairs(d.Hidden) do
-            pcall(function() h.LocalTransparencyModifier=1 end)
-        end
-        pcall(function()
-            if cam.CameraType~=Enum.CameraType.Scriptable then
-                cam.CameraType=Enum.CameraType.Scriptable
-            end
-            cam.CFrame=d.CameraCFrame
-        end)
-    end
-    apply()
-    d.BindName=agRandName()
-    if not pcall(function()
-        RunService:BindToRenderStep(d.BindName,Enum.RenderPriority.Last.Value+1,apply)
-    end) then
-        d.BindName=nil
-        d.Link=RunService.RenderStepped:Connect(apply)
-    end
-    d.Beat=RunService.Heartbeat:Connect(apply)
-    for _,c in ipairs(chars) do
-        local ok2,copy=pcall(agCloneChar,c,cam)
-        if ok2 and copy then
-            d.Copies[#d.Copies+1]=copy
-        end
-    end
-end
+    local percent=Instance.new("TextLabel")
+    percent.AnchorPoint=Vector2.new(0.5,0.5)
+    percent.Position=UDim2.new(0.5,0,0.5,0)
+    percent.Size=UDim2.new(0,500,0,40)
+    percent.BackgroundTransparency=1
+    percent.Text="0%"
+    percent.TextColor3=Color3.fromRGB(150,100,255)
+    percent.Font=Enum.Font.Code
+    percent.TextSize=32
+    percent.TextStrokeTransparency=0.2
+    percent.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    percent.ZIndex=5
+    percent.Parent=frame
 
-local function agDisguiseOff()
-    local d=antiGuardDisguise
-    if not d then return end
-    antiGuardDisguise=nil
-    if d.BindName then
-        pcall(function() RunService:UnbindFromRenderStep(d.BindName) end)
-    end
-    if d.Link then pcall(function() d.Link:Disconnect() end) end
-    if d.Beat then pcall(function() d.Beat:Disconnect() end) end
-    for _,h in ipairs(d.Hidden) do
-        pcall(function() h.LocalTransparencyModifier=0 end)
-    end
-    pcall(function() d.Camera.CameraType=d.CameraType end)
-    for _,c in ipairs(d.Copies) do
-        pcall(function() c:Destroy() end)
-    end
-end
+    local barBg=Instance.new("Frame")
+    barBg.AnchorPoint=Vector2.new(0.5,0.5)
+    barBg.Position=UDim2.new(0.5,0,0.5,50)
+    barBg.Size=UDim2.new(0,420,0,14)
+    barBg.BackgroundColor3=Color3.fromRGB(40,30,55)
+    barBg.BorderSizePixel=0
+    barBg.ZIndex=4
+    barBg.Parent=frame
+    local bgCorner=Instance.new("UICorner")
+    bgCorner.CornerRadius=UDim.new(1,0)
+    bgCorner.Parent=barBg
 
-local function agHome()
-    for _,entry in ipairs(agPaths) do
-        local node=Workspace
-        for _,name in ipairs(entry.Path) do
-            node=node and node:FindFirstChild(name) or nil
-        end
-        if node and node:IsA("BasePart") then
-            return node.CFrame:PointToWorldSpace(entry.Offset)
-        end
-    end
-    return Vector3.new(528.7,70.57,-364.11)
-end
+    local barFill=Instance.new("Frame")
+    barFill.Size=UDim2.new(0,0,1,0)
+    barFill.BackgroundColor3=Color3.fromRGB(150,100,255)
+    barFill.BorderSizePixel=0
+    barFill.ZIndex=5
+    barFill.Parent=barBg
+    local fillCorner=Instance.new("UICorner")
+    fillCorner.CornerRadius=UDim.new(1,0)
+    fillCorner.Parent=barFill
 
-local function agPivot(char,root,dest,rot)
-    local cf=CFrame.new(dest)*rot
-    pcall(function() char:PivotTo(cf) end)
-    if (root.Position-dest).Magnitude>3 then
-        pcall(function() root.CFrame=cf end)
-    end
-    for _,descendant in ipairs(char:GetDescendants()) do
-        if descendant:IsA("BasePart") then
-            pcall(function()
-                descendant.AssemblyLinearVelocity=Vector3.zero
-                descendant.AssemblyAngularVelocity=Vector3.zero
-            end)
+    local startTick=tick()
+    task.spawn(function()
+        while flash.Parent and (tick()-startTick)<duration do
+            local pct=math.clamp((tick()-startTick)/duration,0,1)
+            percent.Text=math.floor(pct*100+0.5).."%"
+            barFill.Size=UDim2.new(pct,0,1,0)
+            RunService.Heartbeat:Wait()
         end
-    end
+        if flash.Parent then
+            percent.Text="100%"
+            barFill.Size=UDim2.new(1,0,1,0)
+        end
+    end)
+
+    task.delay(duration,function()
+        pcall(function() flash:Destroy() end)
+    end)
 end
 
 local function agEvade()
@@ -364,49 +292,56 @@ local function agEvade()
     local hum=char and char:FindFirstChildOfClass("Humanoid")
     if not root or not hum or hum.Health<=0 then return end
     antiGuardActive=true
-    local home=agHome()+Vector3.new(antiGuardCfg.OffsetX,antiGuardCfg.Height,antiGuardCfg.OffsetZ)
-    local startCF=root.CFrame
-    local startPos=startCF.Position
-    local rot=CFrame.new()
-    pcall(agDisguiseOn,char)
+
+    local savedCamCFrame=Camera.CFrame
+    local savedCamType=Camera.CameraType
+    Camera.CameraType=Enum.CameraType.Scriptable
+    Camera.CFrame=savedCamCFrame
+
     pcall(function() hum.BreakJointsOnDeath=false end)
-    local startAt=os.clock()
-    local function alive()
-        return root.Parent~=nil and hum.Parent~=nil and hum.Health>0
-    end
-    local function waitUntil(t)
-        while alive() and os.clock()-startAt<t do
-            pcall(function()
-                root.AssemblyLinearVelocity=Vector3.zero
-                root.AssemblyAngularVelocity=Vector3.zero
-            end)
-            RunService.Heartbeat:Wait()
-        end
-        return alive()
-    end
-    if waitUntil(0) and antiGuardCfg.Limp then
-        pcall(function() hum.PlatformStand=true end)
-    end
-    local steps={
-        {At=antiGuardCfg.Step1At,To="home"},
-        {At=antiGuardCfg.Step2At,To="home"},
-        {At=antiGuardCfg.Step3At,To="home"},
-        {At=antiGuardCfg.Step4At,To="start"},
-    }
-    for _,step in ipairs(steps) do
-        if not waitUntil(tonumber(step.At) or 0) then break end
-        local dest=(step.To=="start" and startPos or home)
-        agPivot(char,root,dest,rot)
-        for i=1,FRAME_WAIT do
-            RunService.PreSimulation:Wait()
-        end
-        if alive() and (root.Position-dest).Magnitude>3 then
-            agPivot(char,root,dest,rot)
+
+    for _,v in ipairs(char:GetDescendants()) do
+        if v:IsA("Motor6D") then
+            pcall(function() v.Enabled=true end)
         end
     end
-    waitUntil(antiGuardCfg.ReleaseAt)
+
+    root.AssemblyLinearVelocity=Vector3.zero
+    root.AssemblyAngularVelocity=Vector3.zero
+
+    for _,cf in ipairs(KROV_POINTS) do
+        if not char.Parent or hum.Health<=0 then break end
+        hum.PlatformStand=true
+        hum.Health=100
+        root.CFrame=cf
+        root.AssemblyLinearVelocity=Vector3.zero
+        root.AssemblyAngularVelocity=Vector3.zero
+        Camera.CFrame=savedCamCFrame
+        task.wait(KRV_STEP_WAIT)
+    end
+
+    local startHold=os.clock()
+    local holdConn
+    holdConn=RunService.Heartbeat:Connect(function()
+        if os.clock()-startHold>KRV_HOLD_TIME or not char.Parent then
+            if holdConn then holdConn:Disconnect() end
+            return
+        end
+        hum.Health=100
+        hum.PlatformStand=true
+        root.CFrame=KROV_POINTS[#KROV_POINTS]
+        root.AssemblyLinearVelocity=Vector3.zero
+        root.AssemblyAngularVelocity=Vector3.zero
+        Camera.CFrame=savedCamCFrame
+    end)
+
+    task.wait(KRV_HOLD_TIME)
+    if holdConn then pcall(function() holdConn:Disconnect() end) end
+
     pcall(function() hum.PlatformStand=false end)
-    agDisguiseOff()
+    Camera.CameraType=savedCamType
+    Camera.CFrame=savedCamCFrame
+
     antiGuardActive=false
     antiGuardPending=false
 end
@@ -421,13 +356,19 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     end
     if antiGuardActive or antiGuardPending then return end
     antiGuardPending=true
+
+    DoFullBlackFlash(FLASH_DURATION)
+
     task.spawn(function()
+        task.wait(FLASH_DURATION)
         if not antiGuardActive then
             pcall(agEvade)
         end
     end)
+
     if MoveEnabled then
         task.spawn(function()
+            task.wait(FLASH_DURATION)
             local t0=os.clock()
             while antiGuardActive and os.clock()-t0<10 do
                 RunService.Heartbeat:Wait()
@@ -449,7 +390,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v6.2"
+local BRAND_NAME="Tungtung v6.3"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
