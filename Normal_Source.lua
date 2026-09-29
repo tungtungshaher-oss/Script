@@ -30,7 +30,7 @@ local fn=loadstring(raw) if not fn then return end
 local ok2,cfg=pcall(fn) if not ok2 or type(cfg)~="table" then return end
 
 local SOCIAL_HANDLE,LOGO_ASSET=cfg.SOCIAL_HANDLE,cfg.LOGO_ASSET
-local BRAND_NAME="Tungtung v5.2"
+local BRAND_NAME="Tungtung v5.3 Fix Nhặt trứng cút"
 local NOTIF_NAME="Tungtung Hub"
 
 local MainGui=Instance.new("ScreenGui")
@@ -495,6 +495,7 @@ end
 local AntiHitEnabled=false
 local IsAntiHitRunning=false
 local ANTI_HIT_SPEED=0.001
+local RETURN_DELAY=0.000001
 
 local TeleportPoints={
     Vector3.new(500.62,241.28,-366.64),
@@ -508,7 +509,7 @@ local TeleportPoints={
     Vector3.new(546.80,70.28,-364.40)
 }
 
-local function TeleportRoute(character)
+local function TeleportRoute(character,originCFrame)
     if not character then return end
     local root=character:FindFirstChild("HumanoidRootPart")
     if not root then return end
@@ -521,6 +522,10 @@ local function TeleportRoute(character)
         root.CFrame=CFrame.new(pos)
         task.wait(ANTI_HIT_SPEED)
     end
+    if AntiHitEnabled and originCFrame and root.Parent then
+        task.wait(RETURN_DELAY)
+        root.CFrame=originCFrame
+    end
     IsAntiHitRunning=false
 end
 
@@ -529,9 +534,12 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt,player)
     if not AntiHitEnabled or IsAntiHitRunning then return end
     local char=LP.Character
     if not char then return end
+    local root=char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local originCFrame=root.CFrame
     DoTeleFlash()
     task.spawn(function()
-        TeleportRoute(char)
+        TeleportRoute(char,originCFrame)
     end)
 end)
 
