@@ -5,7 +5,7 @@ for _,n in ipairs{"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_
 for _,c in ipairs(getgenv().TungtungOldConns or{})do pcall(function()c:Disconnect()end)end getgenv().TungtungOldConns={}
 
 local AH,IA=false,false
-local HS=0.05
+local HS=0.1
 
 getgenv().SetAntiHit=function(v)
     AH=v==true
