@@ -5,19 +5,29 @@ for _,n in ipairs{"TungTungScreen","TungTung_TimeUI","TungTung_KeyUI","TungTung_
 for _,c in ipairs(getgenv().TungtungOldConns or{})do pcall(function()c:Disconnect()end)end getgenv().TungtungOldConns={}
 
 local AH,IA=false,false
-local HS=0.1
+
+-- FIX 3: toggleVisualFn được set bởi SM() sau khi tạo GUI
+-- SetAntiHit gọi fn này để sync UI
+local _AHVisualFn=nil
 
 getgenv().SetAntiHit=function(v)
-    AH=v==true
-    getgenv().Tungtung_AntiHit=AH
-    print("[AntiHit]",AH and"ON"or"OFF")
-end
-getgenv().SetAntiHitSpeed=function(v)
-    HS=tonumber(v)or HS
-    print("[AntiHit] Speed =",HS)
+	AH=v==true
+	getgenv().Tungtung_AntiHit=AH
+	if _AHVisualFn then _AHVisualFn(AH)end
+	print("[AntiHit]",AH and"ON"or"OFF")
 end
 
-local TP={Vector3.new(500.62,241.28,-366.64),Vector3.new(504.45,155.80,-366.35),Vector3.new(508.30,70.28,-366.03),Vector3.new(513.86,70.28,-366.25),Vector3.new(519.43,70.28,-366.47),Vector3.new(524.32,70.28,-366.59),Vector3.new(529.22,70.28,-366.71),Vector3.new(538.01,70.28,-365.55),Vector3.new(546.80,70.28,-364.40)}
+local TP={
+	Vector3.new(500.62,241.28,-366.64),
+	Vector3.new(504.45,155.80,-366.35),
+	Vector3.new(508.30,70.28,-366.03),
+	Vector3.new(513.86,70.28,-366.25),
+	Vector3.new(519.43,70.28,-366.47),
+	Vector3.new(524.32,70.28,-366.59),
+	Vector3.new(529.22,70.28,-366.71),
+	Vector3.new(538.01,70.28,-365.55),
+	Vector3.new(546.80,70.28,-364.40)
+}
 
 local function gR()local c=LP.Character return c and c:FindFirstChild("HumanoidRootPart")or nil end
 local function gH()local c=LP.Character return c and c:FindFirstChildOfClass("Humanoid")or nil end
@@ -30,97 +40,63 @@ local function uC()if not CL then return end CL=false local c=gC()if c then pcal
 local function lJ()local h=gH()if not h then return end if JP==nil then JP=h.JumpPower end if JH==nil then JH=h.JumpHeight end pcall(function()h.JumpPower=0 end)pcall(function()h.JumpHeight=0 end)pcall(function()h:SetStateEnabled(Enum.HumanoidStateType.Jumping,false)end)end
 local function uJ()local h=gH()if not h then return end if JP~=nil then pcall(function()h.JumpPower=JP end)end if JH~=nil then pcall(function()h.JumpHeight=JH end)end pcall(function()h:SetStateEnabled(Enum.HumanoidStateType.Jumping,true)end)JP=nil JH=nil end
 
-local function TR(c)if not c then return end local r=c:FindFirstChild("HumanoidRootPart")if not r then return end IA=true for _,p in ipairs(TP)do if not AH or not r.Parent then IA=false return end r.CFrame=CFrame.new(p)task.wait(HS)end IA=false end
-
--- ===== TUNGTUNG LOADING KHI PROXI BẮN RA =====
-local function ShowProxiLoading()
-    local SG2 = GC()
-    pcall(function()
-        local old = SG2:FindFirstChild("TungTungProxiLoad")
-        if old then old:Destroy() end
-    end)
-    local BlackScreen = Instance.new("Frame")
-    BlackScreen.Name = "TungTungProxiLoad"
-    BlackScreen.Size = UDim2.fromScale(1, 1)
-    BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    BlackScreen.BackgroundTransparency = 0
-    BlackScreen.BorderSizePixel = 0
-    BlackScreen.ZIndex = 2147483646
-    BlackScreen.Parent = SG2
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, 0, 0, 60)
-    Title.Position = UDim2.new(0, 0, 0.42, 0)
-    Title.BackgroundTransparency = 1
-    Title.Text = "TUNGTUNG HUB"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.FredokaOne
-    Title.TextSize = 42
-    Title.ZIndex = 2147483647
-    Title.Parent = BlackScreen
-    local Sub = Instance.new("TextLabel")
-    Sub.Size = UDim2.new(1, 0, 0, 20)
-    Sub.Position = UDim2.new(0, 0, 0.42, 65)
-    Sub.BackgroundTransparency = 1
-    Sub.Text = "Loading..."
-    Sub.TextColor3 = Color3.fromRGB(180, 180, 200)
-    Sub.Font = Enum.Font.GothamMedium
-    Sub.TextSize = 14
-    Sub.ZIndex = 2147483647
-    Sub.Parent = BlackScreen
-    local BarBg = Instance.new("Frame")
-    BarBg.Size = UDim2.new(0.6, 0, 0, 8)
-    BarBg.Position = UDim2.new(0.2, 0, 0.85, 0)
-    BarBg.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    BarBg.BorderSizePixel = 0
-    BarBg.ZIndex = 2147483647
-    BarBg.Parent = BlackScreen
-    Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
-    local BarFill = Instance.new("Frame")
-    BarFill.Size = UDim2.new(0, 0, 1, 0)
-    BarFill.BackgroundColor3 = Color3.fromRGB(150, 80, 255)
-    BarFill.BorderSizePixel = 0
-    BarFill.ZIndex = 2147483647
-    BarFill.Parent = BarBg
-    Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1, 0)
-    local PctText = Instance.new("TextLabel")
-    PctText.Size = UDim2.new(1, 0, 0, 20)
-    PctText.Position = UDim2.new(0, 0, 0.85, 12)
-    PctText.BackgroundTransparency = 1
-    PctText.Text = "0%"
-    PctText.TextColor3 = Color3.fromRGB(200, 200, 220)
-    PctText.Font = Enum.Font.GothamBold
-    PctText.TextSize = 13
-    PctText.ZIndex = 2147483647
-    PctText.Parent = BlackScreen
-    task.spawn(function()
-        local duration = 0.6
-        local startTime = tick()
-        while true do
-            local elapsed = tick() - startTime
-            local progress = math.clamp(elapsed / duration, 0, 1)
-            BarFill.Size = UDim2.new(progress, 0, 1, 0)
-            PctText.Text = math.floor(progress * 100) .. "%"
-            if progress >= 1 then break end
-            task.wait()
-        end
-        task.wait(0.6)
-        local tween = T:Create(BlackScreen, TweenInfo.new(0.25), {BackgroundTransparency = 1})
-        local tween2 = T:Create(Title, TweenInfo.new(0.25), {TextTransparency = 1})
-        local tween3 = T:Create(Sub, TweenInfo.new(0.25), {TextTransparency = 1})
-        local tween4 = T:Create(BarBg, TweenInfo.new(0.25), {BackgroundTransparency = 1})
-        local tween5 = T:Create(BarFill, TweenInfo.new(0.25), {BackgroundTransparency = 1})
-        local tween6 = T:Create(PctText, TweenInfo.new(0.25), {TextTransparency = 1})
-        tween:Play() tween2:Play() tween3:Play() tween4:Play() tween5:Play() tween6:Play()
-        tween.Completed:Wait()
-        BlackScreen:Destroy()
-    end)
+local function TR(c)
+	if not c then return end
+	local r=c:FindFirstChild("HumanoidRootPart")
+	if not r then return end
+	IA=true
+	for _,p in ipairs(TP)do
+		if not AH or not r.Parent then IA=false return end
+		r.CFrame=CFrame.new(p)
+		R.Heartbeat:Wait()
+	end
+	-- wait thêm 0.5s sau khi tele xong để server finish tp về base
+	-- tránh conflict nếu game trigger PromptTriggered lần 2 ngay sau
+	task.wait(0.5)
+	IA=false
 end
--- ===== KẾT THÚC LOADING =====
+
+-- FIX 1: chỉ show loading khi AH bật (loading = anti hit đang hoạt động)
+-- prompt không liên quan trứng sẽ không bị che màn hình
+local function ShowProxiLoading()
+	local gc=GC()
+	pcall(function()local old=gc:FindFirstChild("TungTungProxiLoad")if old then old:Destroy()end end)
+	local BS=Instance.new("Frame")BS.Name="TungTungProxiLoad"BS.Size=UDim2.fromScale(1,1)BS.BackgroundColor3=Color3.fromRGB(0,0,0)BS.BackgroundTransparency=0 BS.BorderSizePixel=0 BS.ZIndex=2147483646 BS.Parent=gc
+	local TL=Instance.new("TextLabel")TL.Size=UDim2.new(1,0,0,60)TL.Position=UDim2.new(0,0,0.42,0)TL.BackgroundTransparency=1 TL.Text="TUNGTUNG HUB"TL.TextColor3=Color3.fromRGB(255,255,255)TL.Font=Enum.Font.FredokaOne TL.TextSize=42 TL.ZIndex=2147483647 TL.Parent=BS
+	local SB=Instance.new("TextLabel")SB.Size=UDim2.new(1,0,0,20)SB.Position=UDim2.new(0,0,0.42,65)SB.BackgroundTransparency=1 SB.Text="Loading..."SB.TextColor3=Color3.fromRGB(180,180,200)SB.Font=Enum.Font.GothamMedium SB.TextSize=14 SB.ZIndex=2147483647 SB.Parent=BS
+	local BB=Instance.new("Frame")BB.Size=UDim2.new(0.6,0,0,8)BB.Position=UDim2.new(0.2,0,0.85,0)BB.BackgroundColor3=Color3.fromRGB(30,30,40)BB.BorderSizePixel=0 BB.ZIndex=2147483647 BB.Parent=BS Instance.new("UICorner",BB).CornerRadius=UDim.new(1,0)
+	local BF=Instance.new("Frame")BF.Size=UDim2.new(0,0,1,0)BF.BackgroundColor3=Color3.fromRGB(150,80,255)BF.BorderSizePixel=0 BF.ZIndex=2147483647 BF.Parent=BB Instance.new("UICorner",BF).CornerRadius=UDim.new(1,0)
+	local PT=Instance.new("TextLabel")PT.Size=UDim2.new(1,0,0,20)PT.Position=UDim2.new(0,0,0.85,12)PT.BackgroundTransparency=1 PT.Text="0%"PT.TextColor3=Color3.fromRGB(200,200,220)PT.Font=Enum.Font.GothamBold PT.TextSize=13 PT.ZIndex=2147483647 PT.Parent=BS
+	task.spawn(function()
+		local dur=0.6 local st=tick()
+		while true do
+			local el=tick()-st
+			local pr=math.clamp(el/dur,0,1)
+			BF.Size=UDim2.new(pr,0,1,0)
+			PT.Text=math.floor(pr*100).."%"
+			if pr>=1 then break end
+			R.Heartbeat:Wait()
+		end
+		task.wait(0.05)
+		local tw1=T:Create(BS,TweenInfo.new(0.22),{BackgroundTransparency=1})
+		local tw2=T:Create(TL,TweenInfo.new(0.22),{TextTransparency=1})
+		local tw3=T:Create(SB,TweenInfo.new(0.22),{TextTransparency=1})
+		local tw4=T:Create(BB,TweenInfo.new(0.22),{BackgroundTransparency=1})
+		local tw5=T:Create(BF,TweenInfo.new(0.22),{BackgroundTransparency=1})
+		local tw6=T:Create(PT,TweenInfo.new(0.22),{TextTransparency=1})
+		tw1:Play()tw2:Play()tw3:Play()tw4:Play()tw5:Play()tw6:Play()
+		tw1.Completed:Wait()
+		BS:Destroy()
+	end)
+end
 
 PP.PromptTriggered:Connect(function(pr,pl)
-    if pl~=LP then return end
-    task.spawn(ShowProxiLoading)
-    if AH and not IA then local c=LP.Character if c then task.spawn(function()TR(c)end)end end
+	if pl~=LP then return end
+	if not AH or IA then return end  -- skip nếu OFF hoặc đang chạy (như virex)
+	local c=LP.Character
+	if not c then return end
+	task.spawn(ShowProxiLoading)
+	task.spawn(function()TR(c)end)
 end)
 
 local BP=false local FH=0 local OH={}
@@ -209,16 +185,30 @@ local function SM()
 
 	local ct=Instance.new("Frame")ct.Size=UDim2.new(1,-12,1,-42)ct.Position=UDim2.new(0,6,0,36)ct.BackgroundTransparency=1 ct.ZIndex=5001 ct.Parent=pn
 
+	-- FIX 3: mR trả về fn update visual để SetAntiHit có thể gọi
 	local function mR(y,lt,gS,oT)
 		local rw=Instance.new("Frame")rw.Size=UDim2.new(1,0,0,35)rw.Position=UDim2.new(0,0,0,y)rw.BackgroundColor3=Color3.fromRGB(18,18,24)rw.BorderSizePixel=0 rw.ZIndex=5002 rw.Parent=ct Instance.new("UICorner",rw).CornerRadius=UDim.new(0,8)local rG=Instance.new("UIGradient",rw)rG.Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(25,20,40)),ColorSequenceKeypoint.new(1,Color3.fromRGB(15,12,25))}local rS=Instance.new("UIStroke",rw)rS.Thickness=1 rS.Color=Color3.fromRGB(60,40,100)
 		local lb=Instance.new("TextLabel")lb.Size=UDim2.new(1,-56,1,0)lb.Position=UDim2.new(0,10,0,0)lb.BackgroundTransparency=1 lb.Text=lt lb.TextColor3=Color3.fromRGB(240,240,255)lb.Font=Enum.Font.GothamBold lb.TextSize=10 lb.TextXAlignment=Enum.TextXAlignment.Left lb.ZIndex=5003 lb.Parent=rw
 		local tk=Instance.new("Frame")tk.Size=UDim2.fromOffset(38,18)tk.Position=UDim2.new(1,-46,.5,-9)tk.BackgroundColor3=gS()and Color3.fromRGB(130,80,255)or Color3.fromRGB(45,45,60)tk.ZIndex=5003 tk.Parent=rw Instance.new("UICorner",tk).CornerRadius=UDim.new(1,0)
 		local kb=Instance.new("Frame")kb.Size=UDim2.fromOffset(14,14)kb.Position=gS()and UDim2.new(1,-17,.5,-7)or UDim2.new(0,2,.5,-7)kb.BackgroundColor3=gS()and Color3.fromRGB(255,255,255)or Color3.fromRGB(200,200,220)kb.ZIndex=5004 kb.Parent=tk Instance.new("UICorner",kb).CornerRadius=UDim.new(1,0)
 		local cb=Instance.new("TextButton")cb.Size=UDim2.new(1,0,1,0)cb.BackgroundTransparency=1 cb.Text=""cb.ZIndex=5005 cb.Parent=rw
-		cb.MouseButton1Click:Connect(function()local i=oT()if i then T:Create(tk,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(130,80,255)}):Play()T:Create(kb,TweenInfo.new(.2),{Position=UDim2.new(1,-17,.5,-7),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play()else T:Create(tk,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()T:Create(kb,TweenInfo.new(.2),{Position=UDim2.new(0,2,.5,-7),BackgroundColor3=Color3.fromRGB(200,200,220)}):Play()end end)
+		local function setVisual(i)
+			if i then
+				T:Create(tk,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(130,80,255)}):Play()
+				T:Create(kb,TweenInfo.new(.2),{Position=UDim2.new(1,-17,.5,-7),BackgroundColor3=Color3.fromRGB(255,255,255)}):Play()
+			else
+				T:Create(tk,TweenInfo.new(.2),{BackgroundColor3=Color3.fromRGB(45,45,60)}):Play()
+				T:Create(kb,TweenInfo.new(.2),{Position=UDim2.new(0,2,.5,-7),BackgroundColor3=Color3.fromRGB(200,200,220)}):Play()
+			end
+		end
+		cb.MouseButton1Click:Connect(function()setVisual(oT())end)
+		return setVisual
 	end
 
-	mR(0,"Super Anti Hit",function()return AH end,function()AH=not AH getgenv().Tungtung_AntiHit=AH pcall(function()SG:SetCore("SendNotification",{Title=NN,Text=AH and"Anti-Hit ON"or"Anti-Hit OFF",Duration=2})end)return AH end)
+	local ahVisual=mR(0,"Super Anti Hit",function()return AH end,function()AH=not AH getgenv().Tungtung_AntiHit=AH pcall(function()SG:SetCore("SendNotification",{Title=NN,Text=AH and"Anti-Hit ON"or"Anti-Hit OFF",Duration=2})end)return AH end)
+	-- FIX 3: gán visual fn để SetAntiHit sync được
+	_AHVisualFn=ahVisual
+
 	mR(38,"Bypass Proximity",function()return BP end,function()BP=not BP getgenv().Tungtung_BypassProximity=BP if BP then AB()else RB()end pcall(function()SG:SetCore("SendNotification",{Title=NN,Text=BP and"Bypass Proximity ON"or"Bypass Proximity OFF",Duration=2})end)return BP end)
 	mR(76,"Anti Ragdoll",function()return AR end,function()AR=not AR getgenv().Tungtung_AntiRagdoll=AR if AR then aSt()local c=LP.Character if c then local h=c:FindFirstChildOfClass("Humanoid")aR(h,c)end else aSp()if ARHB then ARHB:Disconnect()ARHB=nil end aC()end pcall(function()SG:SetCore("SendNotification",{Title=NN,Text=AR and"Anti-Ragdoll ON"or"Anti-Ragdoll OFF",Duration=2})end)return AR end)
 	mR(114,"Trap Cleaner",function()return TC end,function()TC=not TC if TC then tSt()else tSp()end pcall(function()SG:SetCore("SendNotification",{Title=NN,Text=TC and"Trap Cleaner ON"or"Trap Cleaner OFF",Duration=2})end)return TC end)
