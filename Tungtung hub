@@ -1,0 +1,1028 @@
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local P=game:GetService("Players")
+local PP=game:GetService("ProximityPromptService")
+local RS=game:GetService("ReplicatedStorage")
+local Run=game:GetService("RunService")
+local T=game:GetService("TweenService")
+local CG=game:GetService("CoreGui")
+local L=game:GetService("Lighting")
+local W=workspace
+local LP=P.LocalPlayer
+local PG=LP:WaitForChild("PlayerGui")
+local UI=game:GetService("UserInputService")
+
+local function GC() if gethui then local o,h=pcall(gethui) if o and h then return h end end return CG or PG end
+
+for _,n in ipairs({"TungTungScreen","TungTungIntro","TungTungProxiLoad","TungTungFullBlack","SaeStealGui","TungTungTeleGui"}) do
+    pcall(function() if PG:FindFirstChild(n) then PG[n]:Destroy() end end)
+    pcall(function() if CG:FindFirstChild(n) then CG[n]:Destroy() end end)
+end
+for _,c in ipairs(getgenv().__TungConns or {}) do pcall(function() c:Disconnect() end) end
+getgenv().__TungConns={}
+local Conns=getgenv().__TungConns
+
+local function fixShiftLock()
+    pcall(function()
+        local ps=LP:FindFirstChild("PlayerScripts")
+        local pm=ps and ps:FindFirstChild("PlayerModule")
+        if pm then
+            local c=require(pm):GetControls()
+            if c and c.controlsEnabled==false then c:Enable() end
+        end
+    end)
+end
+task.spawn(function() while true do task.wait(1) pcall(fixShiftLock) end end)
+table.insert(Conns,LP.CharacterAdded:Connect(function() task.wait(0.3) fixShiftLock() end))
+
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+local function req(fn) local ok,r=pcall(function() return require(fn()) end) return ok and r or nil end
+local EggState = req(function() return RS.Client.EggState end)
+local Assets = req(function() return RS.Data.Assets end)
+
+local AH=false
+local IA=false
+local BP=false
+local AR=false
+local TC=false
+local FL=false
+local AF=true
+local StealEnabled=false
+local AHRunning=false
+local Carrying=false
+local CarryUid=nil
+local StealRunning=false
+local DeliverMode=false
+local MinRarity=0
+local BaseSpeed=nil
+local SpeedPenalty=0
+local StatusText="Idle"
+local OnlyBestEgg=false
+local FH=0
+local OH={}
+local ARC={}
+local ARCC={}
+local ARHB=nil
+local ARLastFix=0
+local FLC={}
+local FLS={}
+local FLD=false
+local FLA=nil
+local AS={}
+local AU={}
+local AD=setmetatable({},{__index=function() return function() end end})
+local MT={}
+local TCC=nil
+local TD=100
+local ANTI_HIT_SPEED = 0.005
+local IsAntiHitRunning = false
+local AntiHitEnabled = false
+
+local function root() local c=LP.Character return c and c:FindFirstChild("HumanoidRootPart") or nil end
+local function hum() local c=LP.Character return c and c:FindFirstChildOfClass("Humanoid") or nil end
+
+local function applySpeed()
+    local h=hum() if not h then return end
+    if BaseSpeed==nil then BaseSpeed=h.WalkSpeed end
+    pcall(function() h.WalkSpeed=math.max(1,BaseSpeed-SpeedPenalty) end)
+end
+local function restoreSpeed()
+    local h=hum()
+    if h and BaseSpeed~=nil then pcall(function() h.WalkSpeed=BaseSpeed end) end
+    BaseSpeed=nil
+end
+local function getSpeed()
+    local h=hum()
+    return h and math.max(1,h.WalkSpeed) or 16
+end
+
+if EggState and EggState.CarryChanged and type(EggState.CarryChanged.Connect)=="function" then
+    local c=EggState.CarryChanged:Connect(function(data)
+        local is=type(data)=="table" and data.IsCarrying==true
+        if is and type(data.Uid)=="string" then CarryUid=data.Uid end
+        Carrying=is
+        if not is then CarryUid=nil end
+    end)
+    table.insert(Conns,c)
+end
+
+local function ShowProxiLoading()
+    local gc=GC()
+    pcall(function() local old=gc:FindFirstChild("TungTungProxiLoad") if old then old:Destroy() end end)
+    local BS=Instance.new("Frame")
+    BS.Name="TungTungProxiLoad"
+    BS.Size=UDim2.fromScale(1,1)
+    BS.BackgroundColor3=Color3.fromRGB(0,0,0)
+    BS.BackgroundTransparency=0
+    BS.BorderSizePixel=0
+    BS.ZIndex=2147483646
+    BS.Parent=gc
+    local TL=Instance.new("TextLabel")
+    TL.Size=UDim2.new(1,0,0,60)
+    TL.Position=UDim2.new(0,0,0.42,0)
+    TL.BackgroundTransparency=1
+    TL.Text="TUNGTUNG HUB"
+    TL.TextColor3=Color3.fromRGB(255,255,255)
+    TL.Font=Enum.Font.FredokaOne
+    TL.TextSize=42
+    TL.ZIndex=2147483647
+    TL.Parent=BS
+    local SB=Instance.new("TextLabel")
+    SB.Size=UDim2.new(1,0,0,20)
+    SB.Position=UDim2.new(0,0,0.42,65)
+    SB.BackgroundTransparency=1
+    SB.Text="Loading..."
+    SB.TextColor3=Color3.fromRGB(180,180,200)
+    SB.Font=Enum.Font.GothamMedium
+    SB.TextSize=14
+    SB.ZIndex=2147483647
+    SB.Parent=BS
+    local BB=Instance.new("Frame")
+    BB.Size=UDim2.new(0.6,0,0,8)
+    BB.Position=UDim2.new(0.2,0,0.85,0)
+    BB.BackgroundColor3=Color3.fromRGB(30,30,40)
+    BB.BorderSizePixel=0
+    BB.ZIndex=2147483647
+    BB.Parent=BS
+    Instance.new("UICorner",BB).CornerRadius=UDim.new(1,0)
+    local BF=Instance.new("Frame")
+    BF.Size=UDim2.new(0,0,1,0)
+    BF.BackgroundColor3=Color3.fromRGB(150,80,255)
+    BF.BorderSizePixel=0
+    BF.ZIndex=2147483647
+    BF.Parent=BB
+    Instance.new("UICorner",BF).CornerRadius=UDim.new(1,0)
+    local PT=Instance.new("TextLabel")
+    PT.Size=UDim2.new(1,0,0,20)
+    PT.Position=UDim2.new(0,0,0.85,12)
+    PT.BackgroundTransparency=1
+    PT.Text="0%"
+    PT.TextColor3=Color3.fromRGB(200,200,220)
+    PT.Font=Enum.Font.GothamBold
+    PT.TextSize=13
+    PT.ZIndex=2147483647
+    PT.Parent=BS
+    task.spawn(function()
+        local dur=0.6 local st=tick()
+        while true do
+            local el=tick()-st
+            local pr=math.clamp(el/dur,0,1)
+            BF.Size=UDim2.new(pr,0,1,0)
+            PT.Text=math.floor(pr*100).."%"
+            if pr>=1 then break end
+            Run.Heartbeat:Wait()
+        end
+        task.wait(0.05)
+        local tw1=T:Create(BS,TweenInfo.new(0.22),{BackgroundTransparency=1})
+        local tw2=T:Create(TL,TweenInfo.new(0.22),{TextTransparency=1})
+        local tw3=T:Create(SB,TweenInfo.new(0.22),{TextTransparency=1})
+        local tw4=T:Create(BB,TweenInfo.new(0.22),{BackgroundTransparency=1})
+        local tw5=T:Create(BF,TweenInfo.new(0.22),{BackgroundTransparency=1})
+        local tw6=T:Create(PT,TweenInfo.new(0.22),{TextTransparency=1})
+        tw1:Play() tw2:Play() tw3:Play() tw4:Play() tw5:Play() tw6:Play()
+        tw1.Completed:Wait()
+        BS:Destroy()
+    end)
+end
+
+local TeleportPoints = {
+    Vector3.new(500.62, 241.28, -366.64),
+    Vector3.new(504.45, 155.80, -366.35),
+    Vector3.new(508.30, 70.28, -366.03),
+    Vector3.new(513.86, 70.28, -366.25),
+    Vector3.new(519.43, 70.28, -366.47),
+    Vector3.new(524.32, 70.28, -366.59),
+    Vector3.new(529.22, 70.28, -366.71),
+    Vector3.new(538.01, 70.28, -365.55),
+    Vector3.new(546.80, 70.28, -364.40)
+}
+
+local function TeleportRoute(character)
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    IsAntiHitRunning = true
+    for _, position in ipairs(TeleportPoints) do
+        if not AntiHitEnabled or not root.Parent then
+            IsAntiHitRunning = false
+            return
+        end
+        root.CFrame = CFrame.new(position)
+        task.wait(ANTI_HIT_SPEED)
+    end
+    IsAntiHitRunning = false
+end
+
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        AntiHitEnabled = AH
+    end
+end)
+
+PP.PromptTriggered:Connect(function(prompt, player)
+    if player ~= LP then return end
+    if not AntiHitEnabled or IsAntiHitRunning then return end
+    local character = LP.Character
+    if not character then return end
+    task.spawn(function()
+        TeleportRoute(character)
+    end)
+end)
+
+local function flyTo(target,deadline)
+    deadline=deadline or tick()+25
+    local r=root() if not r then return false end
+    while tick()<deadline and StealEnabled do
+        r=root() if not r then return false end
+        local diff=target-r.Position
+        if diff.Magnitude<3 then
+            pcall(function() r.AssemblyLinearVelocity=Vector3.zero end)
+            return true
+        end
+        local spd=getSpeed()
+        local vel=diff.Unit*math.min(spd,diff.Magnitude/0.05)
+        pcall(function()
+            r.AssemblyLinearVelocity=Vector3.new(vel.X,vel.Y+W.Gravity*0.016,vel.Z)
+            r.AssemblyAngularVelocity=Vector3.zero
+        end)
+        Run.Heartbeat:Wait()
+    end
+    return false
+end
+
+local function walkTo(target,timeout)
+    timeout=timeout or 20
+    local h=hum() local r=root() if not h or not r then return false end
+    h:MoveTo(target)
+    local t0=tick()
+    while tick()-t0<timeout and StealEnabled do
+        r=root() h=hum() if not r or not h then return false end
+        if (r.Position-target).Magnitude<4 then
+            h:Move(Vector3.zero,false)
+            return true
+        end
+        if (tick()-t0)%0.5<0.02 then h:MoveTo(target) end
+        Run.Heartbeat:Wait()
+    end
+    return false
+end
+
+local function teleInstant(pos)
+    local r=root() if not r then return end
+    pcall(function() r.CFrame=CFrame.new(pos) r.AssemblyLinearVelocity=Vector3.zero r.AssemblyAngularVelocity=Vector3.zero end)
+end
+
+local function getRarity(cat)
+    if not Assets or not Assets.Directory then return 0 end
+    local e=Assets.Directory[tostring(cat)] if type(e)~="table" then return 0 end
+    local rr=e.Rarity if type(rr)~="table" then return 0 end
+    return tonumber(rr.RarityNumber or rr.Rank) or 0
+end
+
+local function scanEggs()
+    if not EggState or type(EggState.ReadFieldEggs)~="function" then return{} end
+    local ok,res=pcall(EggState.ReadFieldEggs)
+    if not ok or type(res)~="table" or type(res.Records)~="table" then return{} end
+    local out={} local r=root()
+    for uid,rec in pairs(res.Records) do
+        if type(rec)=="table" and rec.State~="Claimed"
+        and (rec.State=="Slot" or rec.State=="Dropped")
+        and typeof(rec.BottomCFrame)=="CFrame"
+        and getRarity(rec.AssetCategory)>=MinRarity then
+            local dist=r and (rec.BottomCFrame.Position-r.Position).Magnitude or math.huge
+            table.insert(out,{Uid=uid,Pos=rec.BottomCFrame.Position,Dist=dist,Rar=getRarity(rec.AssetCategory)})
+        end
+    end
+    table.sort(out,function(a,b) if a.Rar~=b.Rar then return a.Rar>b.Rar end return a.Dist<b.Dist end)
+    if OnlyBestEgg and #out>0 then
+        local maxRar=out[1].Rar
+        local best={}
+        for _,e in ipairs(out) do if e.Rar==maxRar then table.insert(best,e) end end
+        return best
+    end
+    return out
+end
+
+local function findPromptNear(pos,radius)
+    radius=radius or 14
+    local best,bestDist=nil,math.huge
+    for _,obj in ipairs(W:GetChildren()) do
+        if obj.Name=="SmartPromptPart" and obj:IsA("BasePart") then
+            local pp=obj:FindFirstChild("CarryAreaEgg")
+            if pp and pp:IsA("ProximityPrompt") and pp.Enabled then
+                local d=(obj.Position-pos).Magnitude
+                if d<radius and d<bestDist then best,bestDist=pp,d end
+            end
+        end
+    end
+    local slots=W:FindFirstChild("AreaEggSlotsClient")
+    if slots then
+        for _,obj in ipairs(slots:GetChildren()) do
+            if obj:IsA("Model") then
+                local pp=obj:FindFirstChild("CarryAreaEgg")
+                if pp and pp:IsA("ProximityPrompt") and pp.Enabled then
+                    local ok2,pivot=pcall(function() return obj:GetPivot().Position end)
+                    if ok2 then
+                        local d=(pivot-pos).Magnitude
+                        if d<radius and d<bestDist then best,bestDist=pp,d end
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function getHome()
+    local world=W:FindFirstChild("World") or W:FindFirstChild("__OBJECTS")
+    local sep=world and world:FindFirstChild("Areas")
+    sep=sep and sep:FindFirstChild("SeparationLine")
+    local lineX=sep and sep:IsA("BasePart") and sep.Position.X or 552
+    return Vector3.new(lineX-5,70.5,-365)
+end
+
+local function fastFirePrompt(pr)
+    if not pr then return end
+    pcall(function()
+        if pr.HoldDuration>0 then pr.HoldDuration=0 end
+        if pr.MaxActivationDistance<30 then pr.MaxActivationDistance=30 end
+    end)
+    task.wait(0.12)
+    if typeof(fireproximityprompt)=="function" then pcall(fireproximityprompt,pr) end
+end
+
+local function waitPrompt(pos,maxWait)
+    local t0=tick()
+    while tick()-t0<(maxWait or 1.2) do
+        local pr=findPromptNear(pos,18) if pr then return pr end
+        Run.Heartbeat:Wait()
+    end
+    return nil
+end
+
+local function tryGrabOnce(egg,useFly)
+    local pos=egg.Pos local uid=egg.Uid
+    if useFly then flyTo(pos+Vector3.new(0,3,0),tick()+14)
+    else walkTo(pos+Vector3.new(0,2,0),25) end
+    if not StealEnabled then return false end
+    local r=root()
+    if r then pcall(function() r.AssemblyLinearVelocity=Vector3.zero r.AssemblyAngularVelocity=Vector3.zero end) end
+    task.wait(0.1)
+    local pr=waitPrompt(pos,1.2)
+    if pr then
+        pcall(function() pr.HoldDuration=0 end)
+        if typeof(fireproximityprompt)=="function" then pcall(fireproximityprompt,pr) end
+    end
+    local t0=tick()
+    while not Carrying and tick()-t0<1.2 do Run.Heartbeat:Wait() end
+    if Carrying then return true end
+    if EggState and type(EggState.CarryFieldEgg)=="function" then pcall(EggState.CarryFieldEgg,uid) end
+    local t1=tick()
+    while not Carrying and tick()-t1<1.5 do Run.Heartbeat:Wait() end
+    return Carrying
+end
+
+local function grabEgg(egg)
+    local useFly=not AH
+    for attempt=1,3 do
+        if not StealEnabled then return false end
+        if Carrying then return true end
+        StatusText=string.format(useFly and "Flying (try %d/3)" or "Walking (try %d/3)",attempt)
+        if tryGrabOnce(egg,useFly) then return true end
+        if attempt<3 then
+            StatusText=string.format("Retry %d/3",attempt+1)
+            local r=root()
+            if r then pcall(function() r.CFrame=r.CFrame+Vector3.new(((attempt%3)-1)*2,0,attempt%2==0 and 2 or -2) end) end
+            task.wait(0.35)
+        end
+    end
+    return false
+end
+
+local function findRecordByUid(uid)
+    if not EggState or type(EggState.ReadFieldEggs)~="function" then return nil end
+    local ok,res=pcall(EggState.ReadFieldEggs)
+    if not ok or type(res)~="table" or type(res.Records)~="table" then return nil end
+    return res.Records[uid]
+end
+
+local function verifyCarrying()
+    return Carrying == true and CarryUid ~= nil
+end
+
+local function deliverEgg()
+    if not Carrying or not CarryUid then return end
+    StatusText="Delivering"
+    DeliverMode=true
+    local home=getHome()
+    local t0=tick()
+    while IsAntiHitRunning and tick()-t0<12 do Run.Heartbeat:Wait() end
+    if not Carrying then
+        DeliverMode=false
+        StatusText="Mất trứng khi đang về • đi kiếm"
+        return
+    end
+    local ok=flyTo(home+Vector3.new(0,2,0),tick()+25)
+    if not ok then teleInstant(home+Vector3.new(0,2,0)) task.wait(0.15) end
+    local t1=tick()
+    while Carrying and tick()-t1<3 do Run.Heartbeat:Wait() end
+    if Carrying and EggState and type(EggState.DropFieldEgg)=="function" then
+        pcall(EggState.DropFieldEgg,"PlayerRequest") task.wait(0.4)
+    end
+    if Carrying then
+        for _=1,3 do
+            task.wait(0.2) if not Carrying then break end
+            if EggState and type(EggState.DropFieldEgg)=="function" then pcall(EggState.DropFieldEgg,"PlayerRequest") end
+        end
+    end
+    DeliverMode=false
+end
+
+local LastRescanTime = 0
+local RESCAN_INTERVAL = 0.5
+local LastHeldUid = nil
+local LastHeldRarity = -1
+local DroppedWatchUid = nil
+local DroppedWatchUntil = 0
+
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+        if not StealEnabled then
+            LastHeldUid = nil
+            LastHeldRarity = -1
+            DroppedWatchUid = nil
+            DroppedWatchUntil = 0
+            continue
+        end
+        local now = tick()
+        if now - LastRescanTime < RESCAN_INTERVAL then continue end
+        LastRescanTime = now
+
+        if Carrying and CarryUid then
+            LastHeldUid = CarryUid
+            local eggs = scanEggs()
+            if #eggs > 0 and eggs[1].Uid ~= CarryUid then
+                local myRec = findRecordByUid(CarryUid)
+                local myRar = myRec and type(myRec)=="table" and getRarity(myRec.AssetCategory) or LastHeldRarity
+                if myRar and myRar >= 0 and eggs[1].Rar > myRar then
+                    if EggState and type(EggState.DropFieldEgg)=="function" then
+                        pcall(EggState.DropFieldEgg,"PlayerRequest")
+                    end
+                    StatusText = "Bỏ trứng cũ • đi lụm trứng xịn hơn"
+                end
+            end
+        else
+            LastHeldUid = nil
+            LastHeldRarity = -1
+
+            if DroppedWatchUid and now < DroppedWatchUntil then
+                local rec = findRecordByUid(DroppedWatchUid)
+                if rec and type(rec)=="table" and rec.State=="Dropped" and typeof(rec.BottomCFrame)=="CFrame" then
+                    local r = root()
+                    if r then
+                        StatusText = "Trứng bị thả • lụm về"
+                        task.spawn(function()
+                            local pos = rec.BottomCFrame.Position
+                            flyTo(pos + Vector3.new(0,3,0), tick()+10)
+                            if StealEnabled and not Carrying then
+                                local pr = waitPrompt(pos, 1.0)
+                                if pr then
+                                    pcall(function() pr.HoldDuration = 0 end)
+                                    if typeof(fireproximityprompt)=="function" then
+                                        pcall(fireproximityprompt, pr)
+                                    end
+                                end
+                                if not Carrying and EggState and type(EggState.CarryFieldEgg)=="function" then
+                                    pcall(EggState.CarryFieldEgg, DroppedWatchUid)
+                                end
+                            end
+                        end)
+                    end
+                    DroppedWatchUid = nil
+                    DroppedWatchUntil = 0
+                elseif rec == nil then
+                end
+            else
+                DroppedWatchUid = nil
+                DroppedWatchUntil = 0
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.35)
+        if not StealEnabled then
+            if StealRunning then StealRunning=false end
+            continue
+        end
+        if StealRunning then continue end
+        StealRunning=true
+
+        if Carrying and CarryUid then
+            StatusText = "Có trứng • mang về"
+            deliverEgg()
+            task.wait(0.3)
+        else
+            if Carrying then
+                Carrying = false
+            end
+            CarryUid = nil
+            StatusText = "Đi kiếm trứng"
+            local eggs=scanEggs()
+            if #eggs>0 then
+                local ok=grabEgg(eggs[1])
+                if ok then
+                    task.wait(0.15)
+                    if Carrying and CarryUid then
+                        StatusText = "Đã lấy • mang về"
+                        deliverEgg()
+                        task.wait(0.3)
+                    else
+                        StatusText = "Lấy xong nhưng mất • đi kiếm tiếp"
+                        Carrying = false
+                        CarryUid = nil
+                        task.wait(0.5)
+                    end
+                else
+                    StatusText="Grab failed"
+                    task.wait(1.2)
+                end
+            else
+                StatusText="No eggs"
+            end
+        end
+        StealRunning=false
+    end
+end)
+
+local function aRfix(h,c)
+    if not h or not h.Parent then return end
+    if h.Health<=0 then return end
+    pcall(function()
+        if h.PlatformStand then h.PlatformStand=false end
+        if not h.AutoRotate then h.AutoRotate=true end
+        if h.Sit then h.Sit=false end
+        if h.WalkSpeed==0 then h.WalkSpeed=16 end
+        if h.JumpPower==0 then h.JumpPower=50 end
+        if h.JumpHeight==0 then h.JumpHeight=7.2 end
+        h:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
+        h:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
+        h:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
+        h:SetStateEnabled(Enum.HumanoidStateType.Dead,false)
+        local s=h:GetState()
+        if s==Enum.HumanoidStateType.Physics or s==Enum.HumanoidStateType.FallingDown or s==Enum.HumanoidStateType.Ragdoll or s==Enum.HumanoidStateType.Dead then
+            h:ChangeState(Enum.HumanoidStateType.GettingUp)
+            h:ChangeState(Enum.HumanoidStateType.Running)
+        end
+    end)
+    if c then pcall(function()
+        for _,p in ipairs(c:GetDescendants()) do
+            if p:IsA("BasePart") then if p.Anchored then p.Anchored=false end
+            elseif p:IsA("Motor6D") then if not p.Enabled then p.Enabled=true end
+            elseif p:IsA("BallSocketConstraint") or p:IsA("HingeConstraint") or p:IsA("RopeConstraint") or p:IsA("RodConstraint") or p:IsA("SpringConstraint") or p:IsA("UniversalConstraint") or p:IsA("NoCollisionConstraint") then
+                local pn=p.Parent
+                if pn and (pn.Name:lower():find("ragdoll") or pn.Name:lower():find("joint") or pn.Name:lower():find("constraint")) then
+                    pcall(function() p:Destroy() end)
+                else
+                    pcall(function() p.Enabled=false end)
+                end
+            end
+        end
+    end) end
+end
+
+local function aRstart()
+    if not ARHB then
+        ARHB=Run.Heartbeat:Connect(function()
+            if not AR then return end
+            local nt=tick()
+            if nt-ARLastFix<0.1 then return end
+            ARLastFix=nt
+            local c=LP.Character if not c then return end
+            local h=c:FindFirstChildOfClass("Humanoid") if not h or h.Health<=0 then return end
+            local s=h:GetState()
+            if h.PlatformStand or s==Enum.HumanoidStateType.Physics or s==Enum.HumanoidStateType.FallingDown or s==Enum.HumanoidStateType.Ragdoll then aRfix(h,c) end
+            local r=c:FindFirstChild("HumanoidRootPart") if r and r.Anchored then r.Anchored=false end
+        end)
+    end
+    local c=LP.Character
+    if c then
+        local h=c:FindFirstChildOfClass("Humanoid")
+        if h then
+            local function bind(h2,c2)
+                if not h2 then return end
+                aRfix(h2,c2)
+                table.insert(ARC,h2.StateChanged:Connect(function(_,n)
+                    if not AR then return end
+                    if n==Enum.HumanoidStateType.Physics or n==Enum.HumanoidStateType.FallingDown or n==Enum.HumanoidStateType.Ragdoll then task.spawn(aRfix,h2,c2) end
+                end))
+                table.insert(ARC,h2:GetPropertyChangedSignal("PlatformStand"):Connect(function()
+                    if not AR then return end
+                    if h2.PlatformStand then task.spawn(aRfix,h2,c2) end
+                end))
+                table.insert(ARC,h2:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+                    if not AR then return end
+                    if h2.WalkSpeed<1 then h2.WalkSpeed=16 end
+                end))
+                table.insert(ARC,h2:GetPropertyChangedSignal("Health"):Connect(function()
+                    if not AR then return end
+                    if h2.Health<=0 then task.spawn(aRfix,h2,c2) end
+                end))
+                local r2=c2:FindFirstChild("HumanoidRootPart")
+                if r2 then
+                    table.insert(ARC,r2:GetPropertyChangedSignal("Anchored"):Connect(function()
+                        if not AR then return end
+                        if r2.Anchored then r2.Anchored=false end
+                    end))
+                end
+            end
+            bind(h,c)
+        end
+    end
+    table.insert(ARC,LP.CharacterAdded:Connect(function(nc)
+        task.wait(.1)
+        if not AR then return end
+        local h=nc:WaitForChild("Humanoid",5) if h then aRfix(h,nc) end
+    end))
+end
+
+local function aRstop()
+    for _,c in ipairs(ARC) do pcall(function() c:Disconnect() end) end
+    table.clear(ARC)
+    for _,c in ipairs(ARCC) do pcall(function() c:Disconnect() end) end
+    table.clear(ARCC)
+    if ARHB then ARHB:Disconnect() ARHB=nil end
+    local c=LP.Character
+    if c then
+        local h=c:FindFirstChildOfClass("Humanoid")
+        if h then
+            pcall(function()
+                h:SetStateEnabled(Enum.HumanoidStateType.FallingDown,true)
+                h:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,true)
+                h:SetStateEnabled(Enum.HumanoidStateType.Physics,true)
+                h:SetStateEnabled(Enum.HumanoidStateType.Dead,true)
+            end)
+        end
+    end
+end
+
+local function AB()
+    for _,o in ipairs(W:GetDescendants()) do
+        if o:IsA("ProximityPrompt") then
+            if OH[o]==nil then OH[o]=o.HoldDuration end
+            pcall(function() o.HoldDuration=FH end)
+        end
+    end
+end
+local function RB()
+    for o,h in pairs(OH) do
+        if o and o.Parent then pcall(function() o.HoldDuration=h end) end
+    end
+    table.clear(OH)
+end
+table.insert(Conns,W.DescendantAdded:Connect(function(o)
+    if not BP then return end
+    if not o:IsA("ProximityPrompt") then return end
+    task.wait(.1)
+    if not BP or not o.Parent then return end
+    pcall(function()
+        if OH[o]==nil then OH[o]=o.HoldDuration end
+        o.HoldDuration=FH
+    end)
+end))
+table.insert(Conns,PP.PromptShown:Connect(function(p)
+    if BP and p and p:IsA("ProximityPrompt") then
+        if OH[p]==nil then OH[p]=p.HoldDuration end
+        pcall(function() p.HoldDuration=FH end)
+    end
+end))
+
+local function iT(o)
+    if not o or not o.Parent then return false end
+    if not o:IsA("BasePart") then return false end
+    if o.Name~="PlayerTrap" then return false end
+    return o.Parent and o.Parent.Name=="Transient"
+end
+local function tM(o)
+    if not iT(o) then return end
+    if MT[o] then return end
+    pcall(function()
+        MT[o]=true
+        o.CanTouch=false
+        o.CanCollide=false
+        o.CanQuery=false
+        o.CFrame=o.CFrame-Vector3.new(0,TD,0)
+        local h=o:FindFirstChild("Hitbox")
+        if h and h:IsA("BasePart") then
+            h.CanTouch=false
+            h.CanCollide=false
+            h.CanQuery=false
+            h.CFrame=h.CFrame-Vector3.new(0,TD,0)
+        end
+    end)
+end
+local function tcStart()
+    local t=W:FindFirstChild("Transient")
+    if t then for _,o in ipairs(t:GetChildren()) do tM(o) end end
+    TCC=W.DescendantAdded:Connect(function(o)
+        if not TC then return end
+        if o.Name~="PlayerTrap" or not o:IsA("BasePart") then return end
+        task.wait(.05) tM(o)
+    end)
+end
+local function tcStop()
+    if TCC then TCC:Disconnect() TCC=nil end
+    table.clear(MT)
+end
+
+local function sP(o,p)
+    if not FLS[o] then FLS[o]={} end
+    if FLS[o][p]==nil then FLS[o][p]=o[p] end
+end
+local function cV()
+    pcall(function()
+        for _,o in ipairs(L:GetChildren()) do
+            if o:IsA("BloomEffect") or o:IsA("BlurEffect") or o:IsA("ColorCorrectionEffect") or o:IsA("SunRaysEffect") or o:IsA("DepthOfFieldEffect") then
+                sP(o,"Enabled") o.Enabled=false
+            end
+        end
+    end)
+end
+local function rV()
+    pcall(function()
+        for _,o in ipairs(L:GetChildren()) do
+            if o:IsA("BloomEffect") or o:IsA("BlurEffect") or o:IsA("ColorCorrectionEffect") or o:IsA("SunRaysEffect") or o:IsA("DepthOfFieldEffect") then
+                local s=FLS[o]
+                if s and s.Enabled~=nil then o.Enabled=s.Enabled end
+            end
+        end
+    end)
+end
+local function oO(o)
+    pcall(function()
+        if o:IsA("BasePart") then
+            if o.Material~=Enum.Material.Plastic and o.Material~=Enum.Material.SmoothPlastic then sP(o,"Material") o.Material=Enum.Material.SmoothPlastic end
+            if o.Reflectance>0 then sP(o,"Reflectance") o.Reflectance=0 end
+            if o.CastShadow then sP(o,"CastShadow") o.CastShadow=false end
+        elseif o:IsA("Decal") or o:IsA("Texture") then
+            if o.Transparency<1 then sP(o,"Transparency") o.Transparency=1 end
+        elseif o:IsA("Light") then
+            if o.Enabled then sP(o,"Enabled") o.Enabled=false end
+        elseif o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam") or o:IsA("Fire") or o:IsA("Smoke") or o:IsA("Sparkles") then
+            if o.Enabled then sP(o,"Enabled") o.Enabled=false end
+        end
+    end)
+end
+local function flStart()
+    cV()
+    if not FLD then
+        FLD=true
+        task.spawn(function()
+            pcall(function() sP(W,"StreamingEnabled") W.StreamingEnabled=false end)
+            local c=0
+            pcall(function()
+                for _,o in ipairs(W:GetDescendants()) do
+                    c=c+1 oO(o)
+                    if c%500==0 then task.wait() end
+                end
+            end)
+            FLD=false
+        end)
+    end
+    if not FLA then
+        FLA=W.DescendantAdded:Connect(function(o)
+            if not FL then return end
+            task.wait(.05)
+            if not FL or not o.Parent then return end
+            oO(o)
+        end)
+    end
+    table.insert(FLC,LP.CharacterAdded:Connect(function() task.wait(1) if FL then cV() end end))
+end
+local function flStop()
+    for _,c in ipairs(FLC) do pcall(function() c:Disconnect() end) end
+    table.clear(FLC)
+    if FLA then FLA:Disconnect() FLA=nil end
+    rV()
+    pcall(function()
+        for o,ps in pairs(FLS) do
+            if o then
+                for p,v in pairs(ps) do pcall(function() o[p]=v end) end
+            end
+        end
+    end)
+    table.clear(FLS)
+end
+
+local function aG()
+    if type(getconnections)~="function" then return{} end
+    local o,r=pcall(getconnections,LP.Idled)
+    return o and type(r)=="table" and r or{}
+end
+local function aSi()
+    for _,c in ipairs(aG()) do
+        if pcall(function() c:Disable() end) then AS[#AS+1]=c end
+    end
+end
+local function aRe()
+    local l=AS
+    if #l==0 then l=aG() end
+    for _,c in ipairs(l) do pcall(function() c:Enable() end) end
+    table.clear(AS)
+end
+local function aFn()
+    local out={}
+    if type(getgc)~="function" or type(debug)~="table" or type(debug.getupvalues)~="function" then return out end
+    local o,r=pcall(getgc,false)
+    if not o or type(r)~="table" then return out end
+    for _,f in ipairs(r) do
+        if type(f)=="function" and islclosure(f) then
+            local o2,s=pcall(debug.info,f,"s")
+            if o2 and type(s)=="string" and string.find(s,"AntiAFK",1,true) then
+                local o3,u=pcall(debug.getupvalues,f)
+                if o3 and type(u)=="table" then
+                    for k,v in pairs(u) do
+                        if typeof(v)=="Instance" and v.ClassName=="TeleportService" then
+                            out[#out+1]={Fn=f,Index=k,Original=v}
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+local function aPatch()
+    for _,h in ipairs(aFn()) do
+        local o,v=pcall(debug.getupvalue,h.Fn,h.Index)
+        if o and typeof(v)=="Instance" then
+            if pcall(debug.setupvalue,h.Fn,h.Index,AD) then AU[#AU+1]=h end
+        end
+    end
+end
+local function aUnpatch()
+    for _,h in ipairs(AU) do pcall(debug.setupvalue,h.Fn,h.Index,h.Original) end
+    table.clear(AU)
+end
+local function afStart() aSi() if #AU==0 then aPatch() end end
+task.spawn(function() while true do if AF then pcall(afStart) end task.wait(600) end end)
+task.spawn(function() task.wait(1) if AF then pcall(afStart) end end)
+
+pcall(function()
+    if hookfunction and getrawmetatable then
+        local mt=getrawmetatable(game)
+        if mt then
+            local on=mt.__namecall
+            setreadonly(mt,false)
+            mt.__namecall=newcclosure(function(s,...)
+                local m=getnamecallmethod()
+                if m=="Kick" then return nil end
+                return on(s,...)
+            end)
+            setreadonly(mt,true)
+        end
+    end
+end)
+task.spawn(function()
+    task.wait(5)
+    pcall(function()
+        for _,o in ipairs(game:GetDescendants()) do
+            if o:IsA("RemoteEvent") or o:IsA("RemoteFunction") then
+                local n=string.lower(o.Name)
+                if n:find("detect") or n:find("cheat") or n:find("kick") or n:find("ban") or n:find("report") or n:find("flag") then
+                    if getconnections then
+                        for _,c in ipairs(getconnections(o.OnClientEvent)) do pcall(function() c:Disable() end) end
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+local Window = WindUI:CreateWindow({
+    Title = "Tungtung Hub",
+    Icon = "rbxassetid://82795327169782",
+    Author = "v7 • Auto Steal",
+    Folder = "TungtungHub",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = "Dark",
+    User = {
+        Enabled = true,
+        Anonymous = true
+    }
+})
+
+local TabSteal = Window:Tab({
+    Title = "Auto Steal",
+    Icon = "shopping-basket"
+})
+
+TabSteal:Section({ Title = "Steal" })
+
+TabSteal:Toggle({
+    Title = "Auto Steal",
+    Desc = "Tự động lấy trứng",
+    Default = false,
+    Callback = function(v)
+        StealEnabled=v
+        if v then
+            SpeedPenalty=math.random(2,3)
+            applySpeed()
+            StatusText="Scanning..."
+        else
+            SpeedPenalty=0
+            restoreSpeed()
+            StatusText="Idle"
+        end
+    end
+})
+
+TabSteal:Toggle({
+    Title = "Only Best",
+    Desc = "Chỉ lấy trứng hiếm nhất",
+    Default = false,
+    Callback = function(v) OnlyBestEgg=v end
+})
+
+TabSteal:Toggle({
+    Title = "Anti Hit",
+    Desc = "Đóng băng quái",
+    Default = false,
+    Callback = function(v) AH=v end
+})
+
+local TabDefense = Window:Tab({
+    Title = "Defense",
+    Icon = "shield"
+})
+
+TabDefense:Section({ Title = "Protection" })
+
+TabDefense:Toggle({
+    Title = "Anti Ragdoll",
+    Desc = "Chống bị ngã",
+    Default = false,
+    Callback = function(v)
+        AR=v
+        if v then aRstart() else aRstop() end
+    end
+})
+
+TabDefense:Toggle({
+    Title = "Bypass Proximity",
+    Desc = "Bỏ qua thời gian giữ nút",
+    Default = false,
+    Callback = function(v)
+        BP=v
+        if v then AB() else RB() end
+    end
+})
+
+TabDefense:Toggle({
+    Title = "Trap Cleaner",
+    Desc = "Xóa bẫy xung quanh",
+    Default = false,
+    Callback = function(v)
+        TC=v
+        if v then tcStart() else tcStop() end
+    end
+})
+
+local TabUtil = Window:Tab({
+    Title = "Utility",
+    Icon = "zap"
+})
+
+TabUtil:Section({ Title = "Performance" })
+
+TabUtil:Toggle({
+    Title = "Fix Lag",
+    Desc = "Giảm lag",
+    Default = false,
+    Callback = function(v)
+        FL=v
+        if v then flStart() else flStop() end
+    end
+})
+
+TabUtil:Toggle({
+    Title = "Anti AFK",
+    Desc = "Chống kick khi treo máy",
+    Default = true,
+    Callback = function(v)
+        AF=v
+        if v then pcall(afStart) else aRe() aUnpatch() end
+    end
+})
+
+WindUI:Notify({
+    Title = "Tungtung Hub v7",
+    Content = "Load thành công!",
+    Duration = 3
+})
